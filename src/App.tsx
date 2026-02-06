@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import MenteeDetail from "./pages/MenteeDetail";
+import WeeklyReportDetail from "./pages/WeeklyReportDetail";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 
@@ -39,6 +40,22 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <MenteeDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentee/:id/report"
+            element={
+              <ProtectedRoute>
+                <WeeklyReportDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentee/:id/report/:reportId"
+            element={
+              <ProtectedRoute>
+                <WeeklyReportDetail />
               </ProtectedRoute>
             }
           />

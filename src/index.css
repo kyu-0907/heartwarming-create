@@ -107,6 +107,10 @@
 }
 
 @layer components {
+  .font-outfit {
+    font-family: 'Outfit', sans-serif;
+  }
+
   .card-glass {
     @apply bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50;
     box-shadow: var(--shadow-card);
@@ -160,6 +164,7 @@
 
   .calendar-day {
     @apply w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors;
+    font-family: 'Outfit', sans-serif;
   }
 
   .calendar-day-today {
