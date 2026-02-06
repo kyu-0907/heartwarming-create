@@ -5,7 +5,7 @@ const ProfileHeader = () => {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 mb-6">
       {/* 프로필 이미지 및 정보 그룹 */}
-      <div className="flex items-center gap-4 self-start md:self-auto">
+      <div className="flex items-center gap-4 self-start md:self-auto w-full md:w-auto">
         <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 border-2 border-border">
           <img
             src="/images/avatar_male.png"
@@ -18,6 +18,15 @@ const ProfileHeader = () => {
           <h1 className="text-xl md:text-2xl font-bold text-foreground">황규호</h1>
           <p className="text-sm md:text-base text-muted-foreground">경기고등학교 3학년</p>
         </div>
+
+        {/* Mobile Only Add Button */}
+        <div className="md:hidden ml-auto">
+          <AddAssignmentDialog>
+            <button className="btn-accent px-3 py-2 text-xs flex items-center gap-1">
+              과제 추가 <Plus size={14} />
+            </button>
+          </AddAssignmentDialog>
+        </div>
       </div>
 
       {/* 메모 입력 */}
@@ -29,15 +38,17 @@ const ProfileHeader = () => {
         />
       </div>
 
-      {/* 과제 추가 버튼 */}
-      <AddAssignmentDialog>
-        <button
-          className="btn-accent flex items-center gap-2 shrink-0"
-        >
-          과제 추가
-          <Plus size={18} />
-        </button>
-      </AddAssignmentDialog>
+      {/* 과제 추가 버튼 (Desktop) */}
+      <div className="hidden md:block">
+        <AddAssignmentDialog>
+          <button
+            className="btn-accent flex items-center gap-2 shrink-0"
+          >
+            과제 추가
+            <Plus size={18} />
+          </button>
+        </AddAssignmentDialog>
+      </div>
     </div>
   );
 };

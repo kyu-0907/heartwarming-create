@@ -1,7 +1,7 @@
 import { Lightbulb, BookOpen, Calendar, MessageCircle, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -28,6 +28,21 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const currentPath = location.pathname;
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [mobileOpen]);
 
   const isActive = (path: string) => {
     if (path === '/') return currentPath === '/' || currentPath.startsWith('/mentee');

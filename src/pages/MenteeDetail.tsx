@@ -16,6 +16,7 @@ const MenteeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMyWorkspaceOpen, setIsMyWorkspaceOpen] = useState(false);
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row bg-background">
@@ -33,7 +34,12 @@ const MenteeDetail = () => {
             <Menu size={24} />
           </button>
           <span className="font-outfit font-bold text-lg text-foreground">SeolStudy</span>
-          <div className="w-6" /> {/* Spacer */}
+          <button
+            onClick={() => setIsMyWorkspaceOpen(true)}
+            className="text-sm font-bold text-primary border border-primary/30 bg-primary/5 rounded-lg px-3 py-1 active:scale-95 transition-all"
+          >
+            MY
+          </button>
         </div>
 
         <div className="max-w-5xl mx-auto">
@@ -79,7 +85,11 @@ const MenteeDetail = () => {
       </main>
 
       {/* 오른쪽 사이드바 - 반응형 */}
-      <RightSidebar showMemo={true} />
+      <RightSidebar
+        showMemo={true}
+        mobileOpen={isMyWorkspaceOpen}
+        onMobileClose={() => setIsMyWorkspaceOpen(false)}
+      />
     </div>
   );
 };

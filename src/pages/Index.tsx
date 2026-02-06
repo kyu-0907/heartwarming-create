@@ -6,6 +6,7 @@ import { Menu } from 'lucide-react';
 
 const Index = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMyWorkspaceOpen, setIsMyWorkspaceOpen] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const displayName = user.nickname ? `${user.nickname}${user.role === 'mentor' ? 'T' : ''}` : '사용자';
 
@@ -24,8 +25,15 @@ const Index = () => {
           >
             <Menu size={24} />
           </button>
+
           <span className="font-outfit font-bold text-lg text-white">SeolStudy</span>
-          <div className="w-6" /> {/* Spacer */}
+
+          <button
+            onClick={() => setIsMyWorkspaceOpen(true)}
+            className="text-sm font-bold text-primary border border-primary/30 bg-primary/10 rounded-lg px-3 py-1 active:scale-95 transition-all"
+          >
+            MY
+          </button>
         </div>
 
         {/* 헤더 */}
@@ -38,7 +46,10 @@ const Index = () => {
       </main>
 
       {/* 오른쪽 사이드바 */}
-      <RightSidebar />
+      <RightSidebar
+        mobileOpen={isMyWorkspaceOpen}
+        onMobileClose={() => setIsMyWorkspaceOpen(false)}
+      />
     </div>
   );
 };
