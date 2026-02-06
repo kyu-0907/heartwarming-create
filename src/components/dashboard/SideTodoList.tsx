@@ -15,15 +15,20 @@ const todoItems: SideTodoItem[] = [
 ];
 
 const SideTodoList = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const mentorName = user.nickname || '나';
+
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-foreground text-sm md:text-base">TO DO LIST</h3>
+        <h3 className="font-bold text-foreground text-sm md:text-base flex items-center gap-1">
+          <span className="text-primary font-extrabold">{mentorName} 멘토</span>의 TO DO LIST
+        </h3>
         <button className="p-1 hover:bg-muted rounded-lg transition-colors border border-border">
           <Plus size={14} className="md:w-4 md:h-4" />
         </button>
       </div>
-      
+
       <div className="space-y-2">
         {todoItems.map((item) => (
           <div
@@ -32,11 +37,10 @@ const SideTodoList = () => {
           >
             <span className="text-xs md:text-sm truncate">{item.title}</span>
             <div
-              className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full border-2 shrink-0 ml-2 ${
-                item.completed
-                  ? 'bg-accent border-accent'
-                  : 'border-muted-foreground'
-              }`}
+              className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full border-2 shrink-0 ml-2 ${item.completed
+                ? 'bg-accent border-accent'
+                : 'border-muted-foreground'
+                }`}
             />
           </div>
         ))}

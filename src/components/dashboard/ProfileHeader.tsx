@@ -5,8 +5,13 @@ const ProfileHeader = () => {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 mb-6">
       {/* 프로필 아이콘 */}
-      <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-lavender flex items-center justify-center shrink-0">
-        <Lightbulb className="w-8 h-8 md:w-10 md:h-10 text-primary-foreground" />
+      {/* 프로필 이미지 */}
+      <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 border-2 border-border">
+        <img
+          src="/images/avatar_male.png"
+          alt="프로필"
+          className="w-full h-full object-cover"
+        />
       </div>
 
       {/* 프로필 정보 */}
