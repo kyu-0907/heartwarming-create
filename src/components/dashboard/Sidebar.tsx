@@ -26,7 +26,7 @@ const mentees = [
 const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const currentPath = location.pathname;
 
   const isActive = (path: string) => {

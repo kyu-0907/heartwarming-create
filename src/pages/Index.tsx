@@ -15,7 +15,7 @@ const Index = () => {
       <Sidebar mobileOpen={isMobileMenuOpen} onMobileClose={() => setIsMobileMenuOpen(false)} />
 
       {/* 메인 콘텐츠 */}
-      <main className="flex-1 bg-dark-card h-full overflow-y-auto scrollbar-hide flex flex-col">
+      <main className="flex-1 bg-dark-card lg:h-full lg:overflow-y-auto h-auto scrollbar-hide flex flex-col">
         {/* 모바일 헤더 */}
         <div className="md:hidden flex items-center justify-between p-4 border-b border-border/20 bg-dark-card sticky top-0 z-10">
           <button

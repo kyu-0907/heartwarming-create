@@ -23,7 +23,7 @@ const MenteeDetail = () => {
       <Sidebar mobileOpen={isMobileMenuOpen} onMobileClose={() => setIsMobileMenuOpen(false)} />
 
       {/* 메인 콘텐츠 */}
-      <main className="flex-1 p-4 md:p-6 overflow-y-auto h-full scrollbar-hide">
+      <main className="flex-1 p-4 md:p-6 lg:overflow-y-auto lg:h-full h-auto scrollbar-hide">
         {/* 모바일 헤더 */}
         <div className="md:hidden flex items-center justify-between mb-4">
           <button

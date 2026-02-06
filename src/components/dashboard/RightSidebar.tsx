@@ -14,7 +14,7 @@ const RightSidebar = ({ showMemo = false }: RightSidebarProps) => {
     const mentorName = user.nickname || '멘토';
 
     return (
-        <aside className="w-full lg:w-72 xl:w-80 p-4 border-t lg:border-t-0 lg:border-l border-border overflow-y-auto h-full bg-background shrink-0 scrollbar-hide">
+        <aside className="w-full lg:w-72 xl:w-80 p-4 border-t lg:border-t-0 lg:border-l border-border lg:overflow-y-auto lg:h-full h-auto bg-background shrink-0 scrollbar-hide">
             {/* 멘토 프로필 헤더 */}
             <div className="flex items-center gap-3 mb-6 p-2 rounded-xl bg-secondary/50">
                 <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold shadow-sm">
