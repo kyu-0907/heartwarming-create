@@ -37,7 +37,7 @@ const Login = () => {
       <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in duration-500">
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-foreground">
-            설스터디 <span className="text-primary">크리에이트</span>
+            설스터디 <span className="text-primary">MVP</span>
           </h1>
           <p className="text-muted-foreground italic">
             따뜻한 배움의 공간에 오신 것을 환영합니다.
@@ -48,8 +48,8 @@ const Login = () => {
           <Card
             onClick={() => setRole('mentor')}
             className={`cursor-pointer p-6 flex flex-col items-center justify-center gap-3 transition-all duration-300 border-2 ${role === 'mentor'
-                ? 'border-primary bg-primary/5 scale-105'
-                : 'border-transparent hover:border-primary/50'
+              ? 'border-primary bg-primary/5 scale-105'
+              : 'border-transparent hover:border-primary/50'
               }`}
           >
             <div className={`p-3 rounded-full ${role === 'mentor' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
@@ -63,8 +63,8 @@ const Login = () => {
           <Card
             onClick={() => setRole('mentee')}
             className={`cursor-pointer p-6 flex flex-col items-center justify-center gap-3 transition-all duration-300 border-2 ${role === 'mentee'
-                ? 'border-accent bg-accent/5 scale-105'
-                : 'border-transparent hover:border-accent/50'
+              ? 'border-accent bg-accent/5 scale-105'
+              : 'border-transparent hover:border-accent/50'
               }`}
           >
             <div className={`p-3 rounded-full ${role === 'mentee' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
