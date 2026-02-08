@@ -9,16 +9,26 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import StudyVerification from './StudyVerification';
+import MenteePlannerView from './MenteePlannerView';
+import LearningReportView from './LearningReportView';
+import MenteeMyPageView from './MenteeMyPageView';
+import MenteeNotificationView from './MenteeNotificationView';
+import MenteeTimerView from './MenteeTimerView';
+import MenteeQnAView from './MenteeQnAView';
 
 interface MenteeMainViewProps {
     onSidebarClick?: () => void;
 }
 
 const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
+    const [view, setView] = useState<'dashboard' | 'planner' | 'verification' | 'report' | 'mypage' | 'notification' | 'timer' | 'qna'>('dashboard');
     // Main Header Date
     const [date, setDate] = useState<Date>(new Date());
     const [activeTab, setActiveTab] = useState<'todo' | 'task' | 'feedback'>('todo');
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+    const [isTodoModalOpen, setIsTodoModalOpen] = useState(false);
+    const [newTodo, setNewTodo] = useState({ subject: '국어', content: '' });
 
     // Widget Calendar State
     const [calendarDate, setCalendarDate] = useState(new Date());
@@ -54,6 +64,35 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
     const handleDatePrev = () => setDate(subDays(date, 1));
     const handleDateNext = () => setDate(addDays(date, 1));
 
+    if (view === 'planner') {
+        return <MenteePlannerView onBack={() => setView('dashboard')} />;
+    }
+
+    if (view === 'verification') {
+        return <StudyVerification onBack={() => setView('dashboard')} />;
+    }
+
+    if (view === 'report') {
+        return <LearningReportView onBack={() => setView('dashboard')} />;
+    }
+
+    if (view === 'mypage') {
+        return <MenteeMyPageView onBack={() => setView('dashboard')} />;
+    }
+
+    if (view === 'notification') {
+        return <MenteeNotificationView onBack={() => setView('dashboard')} />;
+    }
+
+    if (view === 'timer') {
+        return <MenteeTimerView onBack={() => setView('dashboard')} />;
+    }
+
+    if (view === 'qna') {
+        return <MenteeQnAView onBack={() => setView('dashboard')} />;
+    }
+
+
     return (
         <div className="w-full h-full flex flex-col items-center bg-[#dadef8]/30 p-4 md:p-8 overflow-y-auto min-h-screen">
             {/* Header */}
@@ -61,7 +100,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                 {/* Profile */}
                 <Avatar
                     className="w-10 h-10 border border-white shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={onSidebarClick}
+                    onClick={() => setView('mypage')}
                 >
                     <AvatarImage src="/images/avatar_male.png" />
                     <AvatarFallback>M</AvatarFallback>
@@ -95,7 +134,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                 </div>
 
                 {/* Notification */}
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground relative">
+                <Button variant="ghost" size="icon" onClick={() => setView('notification')} className="h-8 w-8 text-muted-foreground relative">
                     <Bell size={20} />
                     <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white" />
                 </Button>
@@ -150,9 +189,9 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
 
                     {/* Content */}
                     <div className="mt-8">
-                        {activeTab === 'todo' && <ToDoListContent />}
-                        {activeTab === 'task' && <TaskContent date={date} />}
-                        {activeTab === 'feedback' && <FeedbackContent date={date} />}
+                        {activeTab === 'todo' && <ToDoListContent onAddClick={() => setIsTodoModalOpen(true)} />}
+                        {activeTab === 'task' && <TaskContent date={date} onVerifyClick={() => setView('verification')} />}
+                        {activeTab === 'feedback' && <FeedbackContent date={date} onReportClick={() => setView('report')} />}
                     </div>
                 </Card>
             </div>
@@ -163,7 +202,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                 <div className="grid grid-cols-2 gap-4">
                     {/* Planner */}
                     <div
-                        onClick={() => { }}
+                        onClick={() => setView('planner')}
                         className="bg-[#6eff7b] rounded-[2rem] p-6 relative h-40 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-sm group"
                     >
                         <span className="text-2xl font-bold text-white drop-shadow-sm font-outfit">플래너</span>
@@ -172,7 +211,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
 
                     {/* Q&A */}
                     <div
-                        onClick={() => { }}
+                        onClick={() => setView('qna')}
                         className="bg-gradient-to-br from-[#e2e8ff] to-[#f0f4ff] rounded-[2rem] p-6 relative h-40 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-sm group overflow-hidden"
                     >
                         <span className="text-2xl font-bold text-[#4a55a2] font-outfit relative z-10">질의응답</span>
@@ -185,7 +224,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                 <div className="grid grid-cols-2 gap-4">
                     {/* Timer */}
                     <div
-                        onClick={() => { }}
+                        onClick={() => setView('timer')}
                         className="bg-[#2d2d2d] rounded-[2rem] p-6 relative h-32 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-lg group"
                     >
                         <span className="text-white font-bold text-sm">타이머</span>
@@ -278,11 +317,61 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                     </div>
                 </div>
             </div>
+
+            {/* Todo Add Modal */}
+            {isTodoModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setIsTodoModalOpen(false); }}>
+                    <Card className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl p-6 border-none animate-in zoom-in-95 duration-200">
+                        <div className="space-y-6">
+                            {/* Subjects */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-900 ml-1">과목</label>
+                                <div className="flex gap-2">
+                                    {['국어', '영어', '수학'].map((sub) => (
+                                        <button
+                                            key={sub}
+                                            onClick={() => setNewTodo(prev => ({ ...prev, subject: sub }))}
+                                            className={`flex-1 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm ${newTodo.subject === sub
+                                                ? 'bg-[#6eff7b] text-black scale-105'
+                                                : 'bg-green-100/50 text-gray-500 hover:bg-green-100'
+                                                }`}
+                                        >
+                                            {sub}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-900 ml-1">계획 내용</label>
+                                <textarea
+                                    className="w-full h-32 rounded-2xl bg-gray-50 border-none p-4 text-sm font-medium resize-none focus:ring-2 focus:ring-[#6eff7b]/50 outline-none placeholder:text-gray-400"
+                                    placeholder="계획 내용을 작성해 주세요"
+                                    value={newTodo.content}
+                                    onChange={(e) => setNewTodo(prev => ({ ...prev, content: e.target.value }))}
+                                />
+                            </div>
+
+                            {/* Submit */}
+                            <Button
+                                className="w-full bg-[#2d2d2d] hover:bg-black text-white rounded-2xl py-6 text-lg font-bold shadow-lg"
+                                onClick={() => {
+                                    setIsTodoModalOpen(false);
+                                    setNewTodo({ subject: '국어', content: '' });
+                                }}
+                            >
+                                계획 추가
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };
 
-const ToDoListContent = () => (
+const ToDoListContent = ({ onAddClick }: { onAddClick: () => void }) => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="space-y-2">
             <div className="flex justify-between text-sm font-semibold text-muted-foreground">
@@ -302,8 +391,8 @@ const ToDoListContent = () => (
                     { subject: '수학', title: '100제 한단원 끝내기', done: false, color: 'bg-green-300 text-green-900' },
                     { subject: '수학', title: '오답 노트', done: false, color: 'bg-green-300 text-green-900' },
                 ].map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-3 bg-white/50 p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className={`w-4 h-4 rounded-full border-2 ${item.done ? 'bg-green-500 border-green-500' : 'border-red-400'}`} />
+                    <div key={idx} className="flex items-center gap-3 bg-white/50 p-2 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer">
+                        <div className={`w-4 h-4 rounded-full border-2 transition-colors ${item.done ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 group-hover:border-green-400'}`} />
                         <Badge className={`${item.color} border-none shadow-none font-bold min-w-[50px] justify-center`}>{item.subject}</Badge>
                         <span className="text-sm font-medium text-gray-700">{item.title}</span>
                     </div>
@@ -311,13 +400,13 @@ const ToDoListContent = () => (
             </div>
         </div>
 
-        <Button className="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-xl py-6 text-lg font-bold shadow-lg">
+        <Button onClick={onAddClick} className="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-xl py-6 text-lg font-bold shadow-lg">
             계획 추가
         </Button>
     </div>
 );
 
-const TaskContent = ({ date }: { date: Date }) => (
+const TaskContent = ({ date, onVerifyClick }: { date: Date; onVerifyClick: () => void }) => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex flex-col gap-2">
             <h2 className="text-2xl font-bold font-outfit text-blue-500">TASK</h2>
@@ -343,13 +432,13 @@ const TaskContent = ({ date }: { date: Date }) => (
             ))}
         </div>
 
-        <Button className="w-full bg-blue-300 hover:bg-blue-400 text-blue-900 rounded-xl py-6 text-lg font-bold shadow-lg">
+        <Button onClick={onVerifyClick} className="w-full bg-blue-300 hover:bg-blue-400 text-blue-900 rounded-xl py-6 text-lg font-bold shadow-lg">
             공부 인증하기
         </Button>
     </div>
 );
 
-const FeedbackContent = ({ date }: { date: Date }) => (
+const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: () => void }) => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-bold font-outfit">FEEDBACK</h2>
@@ -378,7 +467,7 @@ const FeedbackContent = ({ date }: { date: Date }) => (
             </div>
         </div>
 
-        <Button className="w-full bg-purple-400 hover:bg-purple-500 text-white rounded-xl py-6 text-lg font-bold shadow-lg">
+        <Button onClick={onReportClick} className="w-full bg-purple-400 hover:bg-purple-500 text-white rounded-xl py-6 text-lg font-bold shadow-lg">
             학습 리포트 보기
         </Button>
     </div>
