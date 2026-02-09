@@ -99,7 +99,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
             <div className="w-full max-w-md flex items-center justify-between mb-6">
                 {/* Profile */}
                 <Avatar
-                    className="w-10 h-10 border border-white shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                    className="w-12 h-12 border border-white shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => setView('mypage')}
                 >
                     <AvatarImage src="/images/avatar_male.png" />
@@ -134,9 +134,9 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                 </div>
 
                 {/* Notification */}
-                <Button variant="ghost" size="icon" onClick={() => setView('notification')} className="h-8 w-8 text-muted-foreground relative">
-                    <Bell size={20} />
-                    <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white" />
+                <Button variant="ghost" size="icon" onClick={() => setView('notification')} className="h-10 w-10 text-muted-foreground relative">
+                    <Bell size={24} />
+                    <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
                 </Button>
             </div>
 
