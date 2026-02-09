@@ -114,7 +114,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                 {/* Profile */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Avatar className="w-12 h-12 border border-white shadow-sm cursor-pointer hover:opacity-80 transition-opacity">
+                        <Avatar className="w-10 h-10 border border-white shadow-sm cursor-pointer hover:opacity-80 transition-opacity">
                             <AvatarImage src="/images/avatar_male.png" />
                             <AvatarFallback>M</AvatarFallback>
                         </Avatar>
@@ -159,9 +159,9 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                 </div>
 
                 {/* Notification */}
-                <Button variant="ghost" size="icon" onClick={() => setView('notification')} className="h-10 w-10 text-muted-foreground relative">
-                    <Bell size={24} />
-                    <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
+                <Button variant="ghost" size="icon" onClick={() => setView('notification')} className="w-10 h-10 text-muted-foreground relative">
+                    <Bell size={36} />
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
                 </Button>
             </div>
 
