@@ -277,7 +277,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                     </div>
                 </div>
 
-                {/* Calendar Card */}
+                {/* Calendar Caard */}
                 <div
                     className="bg-white rounded-[2rem] overflow-hidden shadow-xl mt-2 transition-transform hover:scale-[1.01]"
                 >
@@ -327,6 +327,7 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
                             })}
                         </div>
                     </div>
+
 
                     {/* Event Footer */}
                     <div className="bg-[#bdc5f5]/30 p-5 flex items-center justify-between hover:bg-[#bdc5f5]/40 transition-colors">
