@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Bell, Calendar as CalendarIcon, Download, CheckCircle, Smartphone, PieChart, Timer, Plus } from 'lucide-react';
 import { format, addDays, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -9,6 +10,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import StudyVerification from './StudyVerification';
 import MenteePlannerView from './MenteePlannerView';
 import LearningReportView from './LearningReportView';
@@ -22,6 +31,7 @@ interface MenteeMainViewProps {
 }
 
 const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
+    const navigate = useNavigate();
     const [view, setView] = useState<'dashboard' | 'planner' | 'verification' | 'report' | 'mypage' | 'notification' | 'timer' | 'qna'>('dashboard');
     // Main Header Date
     const [date, setDate] = useState<Date>(new Date());
@@ -64,6 +74,11 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
     const handleDatePrev = () => setDate(subDays(date, 1));
     const handleDateNext = () => setDate(addDays(date, 1));
 
+    const handleLogout = () => {
+        localStorage.removeItem('user');
+        navigate('/login');
+    };
+
     if (view === 'planner') {
         return <MenteePlannerView onBack={() => setView('dashboard')} />;
     }
@@ -92,19 +107,29 @@ const MenteeMainView = ({ onSidebarClick }: MenteeMainViewProps) => {
         return <MenteeQnAView onBack={() => setView('dashboard')} />;
     }
 
-
     return (
         <div className="w-full h-full flex flex-col items-center bg-[#dadef8]/30 p-4 md:p-8 overflow-y-auto min-h-screen">
             {/* Header */}
             <div className="w-full max-w-md flex items-center justify-between mb-6">
                 {/* Profile */}
-                <Avatar
-                    className="w-12 h-12 border border-white shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => setView('mypage')}
-                >
-                    <AvatarImage src="/images/avatar_male.png" />
-                    <AvatarFallback>M</AvatarFallback>
-                </Avatar>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Avatar className="w-12 h-12 border border-white shadow-sm cursor-pointer hover:opacity-80 transition-opacity">
+                            <AvatarImage src="/images/avatar_male.png" />
+                            <AvatarFallback>M</AvatarFallback>
+                        </Avatar>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                        <DropdownMenuLabel>내 계정</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setView('mypage')} className="cursor-pointer">
+                            마이페이지
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
+                            로그아웃
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* Date Navigation */}
                 <div className="flex items-center gap-2">
