@@ -6,13 +6,22 @@ import MemoWidget from './MemoWidget';
 import { X } from 'lucide-react';
 
 interface RightSidebarProps {
+    menteeId?: string;
     showMemo?: boolean;
     mobileOpen?: boolean;
     onMobileClose?: () => void;
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
 }
 
-const RightSidebar = ({ showMemo = false, mobileOpen = false, onMobileClose }: RightSidebarProps) => {
-    const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+const RightSidebar = ({
+    menteeId,
+    showMemo = false,
+    mobileOpen = false,
+    onMobileClose,
+    selectedDate,
+    onDateChange
+}: RightSidebarProps) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const mentorName = user.nickname || '멘토';
 
@@ -69,8 +78,8 @@ const RightSidebar = ({ showMemo = false, mobileOpen = false, onMobileClose }: R
                     </div>
                 </div>
 
-                <CalendarWidget selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-                <SideTodoList selectedDate={selectedDate || new Date()} />
+                <CalendarWidget selectedDate={selectedDate} onSelectDate={onDateChange} />
+                <SideTodoList selectedDate={selectedDate || new Date()} menteeId={menteeId} />
                 <MemoWidget />
             </aside>
         </>

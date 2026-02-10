@@ -8,6 +8,7 @@ import { Menu } from 'lucide-react';
 const Index = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMyWorkspaceOpen, setIsMyWorkspaceOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isMentor = user.role === 'mentor';
   const displayName = user.nickname ? `${user.nickname}${user.role === 'mentor' ? 'T' : ''}` : '사용자';
@@ -58,6 +59,8 @@ const Index = () => {
         <RightSidebar
           mobileOpen={isMyWorkspaceOpen}
           onMobileClose={() => setIsMyWorkspaceOpen(false)}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
         />
       )}
     </div>

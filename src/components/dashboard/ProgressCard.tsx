@@ -4,9 +4,10 @@ import { format } from 'date-fns';
 
 interface ProgressCardProps {
   menteeId: string;
+  date?: Date;
 }
 
-const ProgressCard = ({ menteeId }: ProgressCardProps) => {
+const ProgressCard = ({ menteeId, date = new Date() }: ProgressCardProps) => {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ completed: 0, total: 0 });
 
@@ -14,15 +15,16 @@ const ProgressCard = ({ menteeId }: ProgressCardProps) => {
     if (!menteeId) return;
     setLoading(true);
     try {
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const todayStr = format(date, 'yyyy-MM-dd');
 
-      // 1. Fetch assignments active today
       const { data: assignments } = await supabase
         .from('assignments')
         .select('is_completed')
         .eq('mentee_id', menteeId)
         .lte('start_date', todayStr)
-        .gte('end_date', todayStr);
+        .gte('end_date', todayStr)
+        .order('end_date', { ascending: true })
+        .limit(2);
 
       // 2. Fetch todos for today
       const { data: todos } = await supabase
@@ -53,8 +55,12 @@ const ProgressCard = ({ menteeId }: ProgressCardProps) => {
 
     const handleRefresh = () => fetchProgress();
     window.addEventListener('refresh-stats', handleRefresh);
-    return () => window.removeEventListener('refresh-stats', handleRefresh);
-  }, [menteeId]);
+    window.addEventListener('refresh-todos', handleRefresh);
+    return () => {
+      window.removeEventListener('refresh-stats', handleRefresh);
+      window.removeEventListener('refresh-todos', handleRefresh);
+    };
+  }, [menteeId, date]);
 
   const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 

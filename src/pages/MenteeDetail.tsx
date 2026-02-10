@@ -17,6 +17,7 @@ const MenteeDetail = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMyWorkspaceOpen, setIsMyWorkspaceOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row bg-background">
@@ -59,13 +60,13 @@ const MenteeDetail = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             {/* TO DO LIST */}
             <div className="lg:col-span-1 h-full">
-              <TodoList menteeId={id!} isReadOnly={true} />
+              <TodoList menteeId={id!} isReadOnly={true} date={selectedDate} />
             </div>
 
             {/* 오른쪽 통계 카드들 */}
             <div className="lg:col-span-2 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ProgressCard menteeId={id!} />
+                <ProgressCard menteeId={id!} date={selectedDate} />
                 <StudyTimeCard />
               </div>
 
@@ -86,9 +87,12 @@ const MenteeDetail = () => {
 
       {/* 오른쪽 사이드바 - 반응형 */}
       <RightSidebar
+        menteeId={id}
         showMemo={true}
         mobileOpen={isMyWorkspaceOpen}
         onMobileClose={() => setIsMyWorkspaceOpen(false)}
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
       />
     </div>
   );

@@ -15,9 +15,10 @@ interface SideTodoItem {
 
 interface SideTodoListProps {
   selectedDate: Date;
+  menteeId?: string;
 }
 
-const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
+const SideTodoList = ({ selectedDate, menteeId }: SideTodoListProps) => {
   const [todos, setTodos] = useState<SideTodoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -30,31 +31,53 @@ const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
   const fetchTodos = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
 
-      // 1. Fetch Personal Todos for selected date
-      const { data: personalData, error: personalError } = await supabase
-        .from('todos')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('target_date', selectedDateStr)
-        .order('created_at', { ascending: false });
+      // If menteeId is provided (from MenteeDetail page), we use that as the target user
+      const targetUserId = menteeId || currentUser.id;
 
-      if (personalError) throw personalError;
+      // 1. Fetch Personal Todos for selected user (if it's a mentee's view or we are looking at a specific mentee)
+      let personalTodos: SideTodoItem[] = [];
+      const isMentorMonitoringSelf = !menteeId && currentUser.role === 'mentor';
 
-      const personalTodos: SideTodoItem[] = (personalData || []).map(t => ({
-        ...t,
-        type: 'personal' // Explicitly mark as personal
-      }));
+      if (!isMentorMonitoringSelf) {
+        const { data: personalData, error: personalError } = await supabase
+          .from('todos')
+          .select('*')
+          .eq('user_id', targetUserId)
+          .eq('target_date', selectedDateStr)
+          .order('created_at', { ascending: false });
 
-      // 2. Fetch Assignments active on selected date
-      const { data: assignmentData, error: assignmentError } = await supabase
-        .from('assignments')
-        .select('*')
-        .eq('mentor_id', user.id);
+        if (personalError) throw personalError;
+        personalTodos = (personalData || []).map(t => ({
+          ...t,
+          type: 'personal'
+        }));
+      }
 
-      if (assignmentError) throw assignmentError;
+      // 2. Fetch Assignments
+      let assignmentData: any[] = [];
+      if (menteeId) {
+        // We are viewing a specific mentee, show their assignments
+        const { data, error } = await supabase
+          .from('assignments')
+          .select('*')
+          .eq('mentee_id', menteeId);
+        if (error) throw error;
+        assignmentData = data || [];
+      } else {
+        // Global view: if mentor, show all they manage. if mentee, show their own.
+        const query = supabase.from('assignments').select('*');
+        if (currentUser.role === 'mentor') {
+          query.eq('mentor_id', currentUser.id);
+        } else {
+          query.eq('mentee_id', currentUser.id);
+        }
+        const { data, error } = await query;
+        if (error) throw error;
+        assignmentData = data || [];
+      }
 
       // 3. Fetch mentee nicknames manually
       const menteeIds = Array.from(new Set((assignmentData || []).map((a: any) => a.mentee_id)));
@@ -86,9 +109,9 @@ const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
         let content = '';
 
         if (isEndDate) {
-          content = `[${menteeName}] ${a.title} 과제 검사 및 피드백`;
+          content = `${menteeName}의 ${a.title} 과제 검사 및 피드백`;
         } else {
-          content = `[${menteeName}] ${a.title} 과제 모니터링`;
+          content = `${menteeName}의 ${a.title} 과제 모니터링`;
         }
 
         return {
@@ -145,7 +168,7 @@ const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
   };
 
   const handleToggleTodo = async (id: string, currentCompleted: boolean, type?: string) => {
-    if (type === 'assignment') return;
+    if (type === 'assignment' || menteeId) return;
 
     try {
       const { error } = await supabase
@@ -167,6 +190,7 @@ const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
 
   const handleDeleteTodo = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    if (menteeId) return;
     try {
       const { error } = await supabase
         .from('todos')
@@ -189,16 +213,18 @@ const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
         <h3 className="font-bold text-foreground text-sm md:text-base flex items-center gap-1">
           <span className="text-primary font-extrabold">{format(selectedDate, 'M.d(eee)', { locale: ko })}</span> 일정
         </h3>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="p-1 hover:bg-muted rounded-lg transition-colors border border-border"
-        >
-          <Plus size={14} className="md:w-4 md:h-4" />
-        </button>
+        {(!menteeId && user.role !== 'mentor') && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="p-1 hover:bg-muted rounded-lg transition-colors border border-border"
+          >
+            <Plus size={14} className="md:w-4 md:h-4" />
+          </button>
+        )}
       </div>
 
       <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-hide">
-        {isAdding && (
+        {(!menteeId && isAdding) && (
           <div className="card-dark p-2 rounded-xl mb-2">
             <Input
               autoFocus
@@ -224,7 +250,7 @@ const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
           todos.map((item) => (
             <div
               key={item.id}
-              className="w-full bg-[#1e2329] p-4 rounded-xl flex items-center justify-between cursor-pointer mb-2 transition-colors hover:bg-[#252b33]"
+              className={`w-full bg-[#1e2329] p-4 rounded-xl flex items-center justify-between mb-2 transition-colors hover:bg-[#252b33] ${menteeId ? 'cursor-default' : 'cursor-pointer'}`}
               onClick={() => handleToggleTodo(item.id, item.completed, item.type)}
             >
               <span className={`text-sm font-medium truncate select-none flex-1 mr-4 ${item.completed ? 'text-gray-600 line-through' : 'text-gray-300'}`}>
@@ -232,7 +258,7 @@ const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
               </span>
 
               <div className="flex items-center gap-2">
-                {item.type === 'personal' && (
+                {(item.type === 'personal' && !menteeId) && (
                   <button
                     onClick={(e) => handleDeleteTodo(e, item.id)}
                     className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
@@ -242,10 +268,10 @@ const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
                 )}
                 <div
                   className={`w-2.5 h-2.5 rounded-full shrink-0 transition-all duration-200 ${item.type === 'assignment'
-                      ? 'bg-[#2dd4bf]' // 과제는 항상 청록색 점
-                      : item.completed
-                        ? 'bg-[#2dd4bf]' // 완료됨
-                        : 'border-2 border-gray-500 bg-transparent' // 미완료
+                    ? 'bg-[#2dd4bf]' // 과제는 항상 청록색 점
+                    : item.completed
+                      ? 'bg-[#2dd4bf]' // 완료됨
+                      : 'border-2 border-gray-500 bg-transparent' // 미완료
                     }`}
                 />
               </div>
