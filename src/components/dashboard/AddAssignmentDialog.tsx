@@ -7,21 +7,30 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CalendarIcon, Upload, NotebookPen } from 'lucide-react';
+import { CalendarIcon, Upload, NotebookPen, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { DateRange } from 'react-day-picker';
+import { supabase } from '@/lib/supabase';
 
 interface AddAssignmentDialogProps {
     children?: React.ReactNode;
+    menteeId?: string;
 }
 
-const AddAssignmentDialog = ({ children }: AddAssignmentDialogProps) => {
+const AddAssignmentDialog = ({ children, menteeId }: AddAssignmentDialogProps) => {
     const [open, setOpen] = useState(false);
     const [date, setDate] = useState<DateRange | undefined>();
     const [file, setFile] = useState<File | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    // Form States
+    const [subject, setSubject] = useState('');
+    const [title, setTitle] = useState('');
+    const [goal, setGoal] = useState('');
+    const [content, setContent] = useState('');
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -29,16 +38,82 @@ const AddAssignmentDialog = ({ children }: AddAssignmentDialogProps) => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // API call simulation
-        toast.success('과제가 성공적으로 추가되었습니다!', {
-            icon: '📝',
-        });
-        setOpen(false);
-        // Reset form
-        setDate(undefined);
-        setFile(null);
+
+        if (!menteeId) {
+            toast.error('멘티 정보가 없습니다.');
+            return;
+        }
+
+        if (!date?.from) {
+            toast.error('기간을 선택해주세요.');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('로그인이 필요합니다.');
+
+            let fileUrl = null;
+            let fileName = null;
+
+            // File Upload Logic
+            if (file) {
+                const fileExt = file.name.split('.').pop();
+                const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('assignments')
+                    .upload(filePath, file);
+
+                if (uploadError) throw uploadError;
+
+                const { data: publicUrlData } = supabase.storage
+                    .from('assignments')
+                    .getPublicUrl(filePath);
+
+                fileUrl = publicUrlData.publicUrl;
+                fileName = file.name;
+            }
+
+            const { error } = await supabase.from('assignments').insert({
+                mentor_id: user.id,
+                mentee_id: menteeId,
+                subject,
+                title,
+                content,
+                start_date: format(date.from, 'yyyy-MM-dd'),
+                end_date: date.to ? format(date.to, 'yyyy-MM-dd') : format(date.from, 'yyyy-MM-dd'),
+                goal,
+                is_completed: false,
+                file_url: fileUrl,
+                file_name: fileName
+            });
+
+            if (error) throw error;
+
+            toast.success('과제가 성공적으로 추가되었습니다!', {
+                icon: '📝',
+            });
+            setOpen(false);
+
+            // Reset form
+            setDate(undefined);
+            setFile(null);
+            setSubject('');
+            setTitle('');
+            setGoal('');
+            setContent('');
+
+        } catch (error: any) {
+            console.error('Error adding assignment:', error);
+            toast.error(`과제 추가 실패: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -59,24 +134,31 @@ const AddAssignmentDialog = ({ children }: AddAssignmentDialogProps) => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <div className="space-y-2 md:col-span-1">
                             <Label htmlFor="subject" className="text-base text-foreground/80">과목</Label>
-                            <Select>
+                            <Select onValueChange={setSubject} value={subject}>
                                 <SelectTrigger className="bg-background border-input">
                                     <SelectValue placeholder="과목" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="korean">국어</SelectItem>
-                                    <SelectItem value="english">영어</SelectItem>
-                                    <SelectItem value="math">수학</SelectItem>
-                                    <SelectItem value="science">과학</SelectItem>
-                                    <SelectItem value="history">한국사</SelectItem>
-                                    <SelectItem value="other">기타</SelectItem>
+                                    <SelectItem value="국어">국어</SelectItem>
+                                    <SelectItem value="영어">영어</SelectItem>
+                                    <SelectItem value="수학">수학</SelectItem>
+                                    <SelectItem value="과학">과학</SelectItem>
+                                    <SelectItem value="한국사">한국사</SelectItem>
+                                    <SelectItem value="기타">기타</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <div className="space-y-2 md:col-span-3">
                             <Label htmlFor="title" className="text-base text-foreground/80">제목</Label>
-                            <Input id="title" placeholder="과제 제목을 입력하세요" className="bg-background border-input" required />
+                            <Input
+                                id="title"
+                                placeholder="과제 제목을 입력하세요"
+                                className="bg-background border-input"
+                                required
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                            />
                         </div>
                     </div>
 
@@ -125,7 +207,13 @@ const AddAssignmentDialog = ({ children }: AddAssignmentDialogProps) => {
 
                         <div className="space-y-2">
                             <Label htmlFor="goal" className="text-base text-foreground/80">목표</Label>
-                            <Input id="goal" placeholder="목표를 설정해보세요!" className="bg-background border-input" />
+                            <Input
+                                id="goal"
+                                placeholder="목표를 설정해보세요!"
+                                className="bg-background border-input"
+                                value={goal}
+                                onChange={(e) => setGoal(e.target.value)}
+                            />
                         </div>
                     </div>
 
@@ -137,6 +225,8 @@ const AddAssignmentDialog = ({ children }: AddAssignmentDialogProps) => {
                             placeholder="어떤 과제인지 상세하게 적어주세요."
                             className="min-h-[150px] bg-background border-input resize-none"
                             required
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
                         />
                     </div>
 
@@ -171,8 +261,8 @@ const AddAssignmentDialog = ({ children }: AddAssignmentDialogProps) => {
                         <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                             취소
                         </Button>
-                        <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[120px]">
-                            과제 만들기
+                        <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[120px]" disabled={loading}>
+                            {loading ? <Loader2 className="animate-spin" /> : '과제 만들기'}
                         </Button>
                     </div>
                 </form>

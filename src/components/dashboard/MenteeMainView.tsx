@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Bell, Calendar as CalendarIcon, Download, CheckCircle, Smartphone, PieChart, Timer, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell, Calendar as CalendarIcon, Download, CheckCircle, Smartphone, PieChart, Timer, Plus, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { format, addDays, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Card } from '@/components/ui/card';
@@ -432,37 +433,92 @@ const ToDoListContent = ({ onAddClick }: { onAddClick: () => void }) => (
     </div>
 );
 
-const TaskContent = ({ date, onVerifyClick }: { date: Date; onVerifyClick: () => void }) => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div className="flex flex-col gap-2">
-            <h2 className="text-2xl font-bold font-outfit text-blue-500">TASK</h2>
-            <Badge variant="secondary" className="w-fit px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium">
-                {format(date, 'yyyy.MM.dd')}
-            </Badge>
-        </div>
+const TaskContent = ({ date, onVerifyClick }: { date: Date; onVerifyClick: () => void }) => {
+    const [tasks, setTasks] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
 
-        <div className="space-y-4">
-            {[1, 2].map((i) => (
-                <div key={i} className="bg-blue-50/50 rounded-2xl p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                        <span className="font-bold text-gray-800">영어 단어 50개 외우기</span>
-                        <Button size="icon" className="h-8 w-8 rounded-full bg-blue-400 hover:bg-blue-500 text-white shadow-md">
-                            <Download size={16} />
-                        </Button>
+    useEffect(() => {
+        const fetchTasks = async () => {
+            setLoading(true);
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                const targetDate = format(date, 'yyyy-MM-dd');
+
+                // Fetch assignments that include the selected date
+                const { data, error } = await supabase
+                    .from('assignments')
+                    .select('*')
+                    .eq('mentee_id', user.id)
+                    .lte('start_date', targetDate)
+                    .gte('end_date', targetDate);
+
+                if (error) throw error;
+                setTasks(data || []);
+            } catch (error) {
+                console.error('Error fetching tasks:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTasks();
+    }, [date]);
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex flex-col gap-2">
+                <h2 className="text-2xl font-bold font-outfit text-blue-500">TASK</h2>
+                <Badge variant="secondary" className="w-fit px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium">
+                    {format(date, 'yyyy.MM.dd')}
+                </Badge>
+            </div>
+
+            <div className="space-y-4">
+                {loading ? (
+                    <div className="flex justify-center p-8">
+                        <Loader2 className="animate-spin text-blue-400" />
                     </div>
-                    <Badge className="bg-blue-400 hover:bg-blue-500 text-white border-none">설스터디 VOCA</Badge>
-                    <p className="text-sm text-gray-500 bg-white/60 p-3 rounded-lg">
-                        멘토가 써준 내용
-                    </p>
-                </div>
-            ))}
-        </div>
+                ) : tasks.length === 0 ? (
+                    <div className="text-center p-8 text-muted-foreground bg-blue-50/50 rounded-2xl">
+                        등록된 과제가 없습니다.
+                    </div>
+                ) : (
+                    tasks.map((task) => (
+                        <div key={task.id} className="bg-blue-50/50 rounded-2xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="font-bold text-gray-800">{task.title}</span>
+                                {task.file_url && (
+                                    <Button
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full bg-blue-400 hover:bg-blue-500 text-white shadow-md"
+                                        onClick={() => window.open(task.file_url, '_blank')}
+                                    >
+                                        <Download size={16} />
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <Badge className="bg-blue-400 hover:bg-blue-500 text-white border-none shrink-0">{task.subject}</Badge>
+                                <span className="text-xs text-muted-foreground">
+                                    {task.start_date} ~ {task.end_date}
+                                </span>
+                            </div>
+                            <p className="text-sm text-gray-500 bg-white/60 p-3 rounded-lg overflow-hidden text-ellipsis">
+                                {task.content}
+                            </p>
+                        </div>
+                    ))
+                )}
+            </div>
 
-        <Button onClick={onVerifyClick} className="w-full bg-blue-300 hover:bg-blue-400 text-blue-900 rounded-xl py-6 text-lg font-bold shadow-lg">
-            공부 인증하기
-        </Button>
-    </div>
-);
+            <Button onClick={onVerifyClick} className="w-full bg-blue-300 hover:bg-blue-400 text-blue-900 rounded-xl py-6 text-lg font-bold shadow-lg">
+                공부 인증하기
+            </Button>
+        </div>
+    );
+};
 
 const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: () => void }) => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">

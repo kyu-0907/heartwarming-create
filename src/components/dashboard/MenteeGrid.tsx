@@ -1,16 +1,13 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Loader2 } from 'lucide-react';
 
 interface Mentee {
   id: string;
-  name: string;
-  school: string;
-  imageUrl: string;
+  nickname: string;
+  role: string;
 }
-
-const mentees: Mentee[] = [
-  { id: '1', name: '멘티 1', school: '경기고등학교 3학년', imageUrl: '/images/avatar_male.png' },
-  { id: '2', name: '멘티 2', school: '수원여자고등학교 2학년', imageUrl: '/images/avatar_female.png' },
-];
 
 const MenteeCard = ({ mentee }: { mentee: Mentee }) => {
   const navigate = useNavigate();
@@ -28,16 +25,20 @@ const MenteeCard = ({ mentee }: { mentee: Mentee }) => {
 
         {/* 프로필 사진 영역 (대형) */}
         <div className="w-40 h-40 md:w-48 md:h-48 rounded-full bg-background border-4 border-border overflow-hidden shadow-sm group-hover:border-accent-foreground/20 transition-all duration-300">
-          <img src={mentee.imageUrl} alt={mentee.name} className="w-full h-full object-cover" />
+          <img
+            src={mentee.nickname === '멘티2' ? "/images/avatar_female.png" : "/images/avatar_male.png"}
+            alt={mentee.nickname}
+            className="w-full h-full object-cover"
+          />
         </div>
 
         {/* 텍스트 정보 */}
         <div className="text-center space-y-2">
           <h3 className="text-2xl md:text-3xl font-bold text-card-foreground group-hover:text-accent-foreground transition-colors duration-300">
-            {mentee.name}
+            {mentee.nickname || '이름 없음'}
           </h3>
           <p className="text-base md:text-lg text-muted-foreground group-hover:text-accent-foreground/80 transition-colors duration-300">
-            {mentee.school}
+            {mentee.nickname === '멘티2' ? '수원여자고등학교 2학년' : '경기고등학교 3학년'}
           </p>
         </div>
       </div>
@@ -46,6 +47,46 @@ const MenteeCard = ({ mentee }: { mentee: Mentee }) => {
 };
 
 const MenteeGrid = () => {
+  const [mentees, setMentees] = useState<Mentee[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMentees = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('role', 'mentee');
+
+        if (error) throw error;
+        setMentees(data || []);
+      } catch (error) {
+        console.error('Error fetching mentees:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMentees();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="w-full h-64 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (mentees.length === 0) {
+    return (
+      <div className="w-full h-64 flex flex-col items-center justify-center text-muted-foreground">
+        <p>등록된 멘티가 없습니다.</p>
+        <p className="text-sm">테스트 계정으로 멘티 로그인을 먼저 진행해주세요!</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full min-h-[500px] flex flex-col md:flex-row items-center justify-evenly gap-8 p-8 md:p-12">
       {mentees.map((mentee) => (

@@ -53,7 +53,7 @@ const MenteeDetail = () => {
           </button>
 
           {/* 프로필 헤더 */}
-          <ProfileHeader />
+          <ProfileHeader menteeId={id} />
 
           {/* 상단 그리드 - 반응형 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">

@@ -1,13 +1,13 @@
-import { Lightbulb, BookOpen, Calendar, MessageCircle, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Lightbulb, BookOpen, Calendar, MessageCircle, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }
-
 
 const menuItems = [
   { icon: Lightbulb, label: '대시보드', path: '/' },
@@ -18,16 +18,19 @@ const menuItems = [
   { icon: Settings, label: '설정', path: '/settings' },
 ];
 
-const mentees = [
-  { id: '1', name: '멘티 1', school: '경기고등학교 3학년', imageUrl: '/images/avatar_male.png' },
-  { id: '2', name: '멘티 2', school: '수원여자고등학교 2학년', imageUrl: '/images/avatar_female.png' },
-];
+interface Mentee {
+  id: string;
+  nickname: string;
+  role: string;
+}
 
 const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const currentPath = location.pathname;
+  const [mentees, setMentees] = useState<Mentee[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -44,16 +47,50 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    const fetchMentees = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('role', 'mentee');
+
+        if (error) throw error;
+        setMentees(data || []);
+      } catch (error) {
+        console.error('Error fetching mentees for sidebar:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMentees();
+  }, []);
+
   const isActive = (path: string) => {
-    if (path === '/') return currentPath === '/' || currentPath.startsWith('/mentee');
+    if (path === '/') return currentPath === '/' && !currentPath.startsWith('/mentee'); // Only active on exact '/'
     return currentPath.startsWith(path);
   };
 
-  const handleLogout = () => {
+  const isMenteeActive = (menteeId: string) => {
+    return currentPath.includes(`/mentee/${menteeId}`);
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('user');
     toast.info('로그아웃 되었습니다.');
     navigate('/login');
   };
+
+  const getMenteeImage = (nickname: string) => {
+    if (nickname === '멘티2') return '/images/avatar_female.png';
+    return '/images/avatar_male.png';
+  }
+
+  const getMenteeSchool = (nickname: string) => {
+    if (nickname === '멘티2') return '수원여자고등학교 2학년';
+    return '경기고등학교 3학년';
+  }
 
   return (
     <>
@@ -67,7 +104,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
 
       <aside
         className={`${mobileOpen ? 'flex fixed inset-y-0 left-0 w-64 shadow-2xl px-4' : 'hidden'
-          } md:flex flex-col min-h-screen bg-lavender-light border-r border-border/50 py-6 gap-6 shrink-0 z-50 transition-all duration-300 relative ${!mobileOpen && isCollapsed ? 'w-20 px-2 items-center' : 'w-64 px-4'
+          } md:flex flex-col h-screen bg-lavender-light border-r border-border/50 py-6 gap-6 shrink-0 z-50 transition-all duration-300 relative ${!mobileOpen && isCollapsed ? 'w-20 px-2 items-center' : 'w-64 px-4'
           }`}
       >
         {/* Mobile Close Button */}
@@ -100,56 +137,68 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
 
         {/* 메뉴 아이템 */}
         <nav className="flex flex-col gap-1 w-full">
-          {(mobileOpen || !isCollapsed) && <p className="text-xs font-semibold text-muted-foreground px-2 mb-2 animate-fade-in">MENU</p>}
-          {menuItems.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => {
-                navigate(item.path);
-                if (mobileOpen && onMobileClose) onMobileClose();
-              }}
-              className={`flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${!mobileOpen && isCollapsed ? 'justify-center w-12 h-12 px-0 mx-auto' : 'px-3'
-                } ${isActive(item.path)
-                  ? 'bg-primary text-primary-foreground shadow-md'
-                  : 'text-muted-foreground hover:bg-white/50 hover:text-foreground'
-                }`}
-              title={(!mobileOpen && isCollapsed) ? item.label : undefined}
-            >
-              <item.icon size={(!mobileOpen && isCollapsed) ? 20 : 18} />
-              {(mobileOpen || !isCollapsed) && <span>{item.label}</span>}
-            </button>
-          ))}
+          {(!mobileOpen && isCollapsed) ? null : <p className="text-xs font-semibold text-muted-foreground px-2 mb-2 animate-fade-in">MENU</p>}
+
+          {menuItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <button
+                key={item.label}
+                onClick={() => {
+                  navigate(item.path);
+                  if (mobileOpen && onMobileClose) onMobileClose();
+                }}
+                className={`flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${!mobileOpen && isCollapsed ? 'justify-center w-12 h-12 px-0 mx-auto' : 'px-3'
+                  } ${active
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:bg-white/50 hover:text-foreground'
+                  }`}
+                title={(!mobileOpen && isCollapsed) ? item.label : undefined}
+              >
+                <item.icon size={(!mobileOpen && isCollapsed) ? 20 : 18} />
+                {(mobileOpen || !isCollapsed) && <span>{item.label}</span>}
+              </button>
+            )
+          })}
         </nav>
 
         {/* 멘티 리스트 */}
         <div className={`flex flex-col gap-1 mt-2 w-full ${!mobileOpen && isCollapsed ? 'items-center' : ''}`}>
-          {(mobileOpen || !isCollapsed) && <p className="text-xs font-semibold text-muted-foreground px-2 mb-2 animate-fade-in">MY MENTEES</p>}
+          {(!mobileOpen && isCollapsed) ? null : <p className="text-xs font-semibold text-muted-foreground px-2 mb-2 animate-fade-in">MY MENTEES</p>}
 
           {!mobileOpen && isCollapsed && <div className="w-full h-px bg-border/50 my-2" />}
 
-          <div className="flex flex-col gap-2 w-full">
-            {mentees.map((mentee) => (
-              <button
-                key={mentee.id}
-                onClick={() => {
-                  navigate(`/mentee/${mentee.id}`);
-                  if (mobileOpen && onMobileClose) onMobileClose();
-                }}
-                className={`flex items-center gap-3 rounded-xl hover:bg-white/50 transition-colors group text-left ${!mobileOpen && isCollapsed ? 'justify-center p-2' : 'px-3 py-2'
-                  }`}
-                title={(!mobileOpen && isCollapsed) ? mentee.name : undefined}
-              >
-                <div className="w-8 h-8 rounded-full overflow-hidden border border-border group-hover:border-primary/50 transition-colors shrink-0">
-                  <img src={mentee.imageUrl} alt={mentee.name} className="w-full h-full object-cover" />
-                </div>
-                {(mobileOpen || !isCollapsed) && (
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">{mentee.name}</span>
-                    <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{mentee.school}</span>
+          <div className="flex flex-col gap-2 w-full overflow-y-auto max-h-[300px] scrollbar-hide">
+            {loading ? (
+              <div className="flex justify-center p-4"><Loader2 className="animate-spin text-muted-foreground w-5 h-5" /></div>
+            ) : mentees.map((mentee) => {
+              const active = isMenteeActive(mentee.id);
+              const imageUrl = getMenteeImage(mentee.nickname);
+              const school = getMenteeSchool(mentee.nickname);
+
+              return (
+                <button
+                  key={mentee.id}
+                  onClick={() => {
+                    navigate(`/mentee/${mentee.id}`);
+                    if (mobileOpen && onMobileClose) onMobileClose();
+                  }}
+                  className={`flex items-center gap-3 rounded-xl hover:bg-white/50 transition-colors group text-left ${!mobileOpen && isCollapsed ? 'justify-center p-2' : 'px-3 py-2'
+                    } ${active ? 'bg-primary/10' : ''}`}
+                  title={(!mobileOpen && isCollapsed) ? mentee.nickname : undefined}
+                >
+                  <div className={`w-8 h-8 rounded-full overflow-hidden border transition-colors shrink-0 ${active ? 'border-primary' : 'border-border group-hover:border-primary/50'}`}>
+                    <img src={imageUrl} alt={mentee.nickname} className="w-full h-full object-cover" />
                   </div>
-                )}
-              </button>
-            ))}
+                  {(mobileOpen || !isCollapsed) && (
+                    <div className="flex flex-col overflow-hidden">
+                      <span className={`text-sm font-medium transition-colors truncate ${active ? 'text-primary font-bold' : 'text-foreground group-hover:text-primary'}`}>{mentee.nickname}</span>
+                      <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{school}</span>
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 
