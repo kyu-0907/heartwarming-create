@@ -520,39 +520,85 @@ const TaskContent = ({ date, onVerifyClick }: { date: Date; onVerifyClick: () =>
     );
 };
 
-const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: () => void }) => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div className="flex flex-col gap-1">
-            <h2 className="text-2xl font-bold font-outfit">FEEDBACK</h2>
-            <p className="text-sm text-muted-foreground">홍길동 멘토의 피드백</p>
-        </div>
+const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: () => void }) => {
+    const [todayFeedback, setTodayFeedback] = useState<string | null>(null);
+    const [yesterdayFeedback, setYesterdayFeedback] = useState<string | null>(null);
 
-        <div className="space-y-6">
-            <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-gray-800">Yesterday</h3>
-                    <Badge variant="outline" className="bg-purple-100 text-purple-700 border-none">{format(subDays(date, 1), 'yyyy.MM.dd')}</Badge>
+    useEffect(() => {
+        const fetchFeedback = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                const todayStr = format(date, 'yyyy-MM-dd');
+                const yesterdayStr = format(subDays(date, 1), 'yyyy-MM-dd');
+
+                // Fetch Today's Feedback
+                const { data: todayData } = await supabase
+                    .from('feedbacks')
+                    .select('content')
+                    .eq('mentee_id', user.id)
+                    .eq('created_at', todayStr)
+                    .single();
+
+                setTodayFeedback(todayData?.content || null);
+
+                // Fetch Yesterday's Feedback
+                const { data: yesterdayData } = await supabase
+                    .from('feedbacks')
+                    .select('content')
+                    .eq('mentee_id', user.id)
+                    .eq('created_at', yesterdayStr)
+                    .single();
+
+                setYesterdayFeedback(yesterdayData?.content || null);
+
+            } catch (error) {
+                console.error('Error fetching feedback:', error);
+            }
+        };
+
+        fetchFeedback();
+    }, [date]);
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex flex-col gap-1">
+                <h2 className="text-2xl font-bold font-outfit">FEEDBACK</h2>
+                <p className="text-sm text-muted-foreground">멘토의 피드백</p>
+            </div>
+
+            <div className="space-y-6">
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-gray-800">Today</h3>
+                        <Badge variant="outline" className="bg-purple-100 text-purple-700 border-none">{format(date, 'yyyy.MM.dd')}</Badge>
+                    </div>
+                    <div className="bg-purple-50 rounded-2xl p-4 min-h-[100px] shadow-inner text-sm text-gray-700 whitespace-pre-wrap flex items-center justify-center">
+                        {todayFeedback ? (
+                            <div className="w-full text-left">{todayFeedback}</div>
+                        ) : (
+                            <span className="text-muted-foreground">멘토가 아직 피드백 하지 않았어요.</span>
+                        )}
+                    </div>
                 </div>
-                <div className="bg-purple-50 rounded-2xl p-4 min-h-[100px] shadow-inner text-sm text-gray-700">
-                    피드백 내용.
+
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-gray-800">Yesterday</h3>
+                        <Badge variant="outline" className="bg-purple-100 text-purple-700 border-none">{format(subDays(date, 1), 'yyyy.MM.dd')}</Badge>
+                    </div>
+                    <div className="bg-purple-50 rounded-2xl p-4 min-h-[100px] shadow-inner text-sm text-gray-700 whitespace-pre-wrap">
+                        {yesterdayFeedback || <span className="text-muted-foreground">피드백 내용이 없습니다.</span>}
+                    </div>
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-gray-800">Today</h3>
-                    <Badge variant="outline" className="bg-purple-100 text-purple-700 border-none">{format(date, 'yyyy.MM.dd')}</Badge>
-                </div>
-                <div className="bg-purple-50 rounded-2xl p-4 min-h-[100px] shadow-inner text-sm text-gray-700 flex items-center justify-center text-muted-foreground">
-                    멘토가 아직 피드백 하지 않았어요.
-                </div>
-            </div>
+            <Button onClick={onReportClick} className="w-full bg-purple-400 hover:bg-purple-500 text-white rounded-xl py-6 text-lg font-bold shadow-lg">
+                학습 리포트 보기
+            </Button>
         </div>
-
-        <Button onClick={onReportClick} className="w-full bg-purple-400 hover:bg-purple-500 text-white rounded-xl py-6 text-lg font-bold shadow-lg">
-            학습 리포트 보기
-        </Button>
-    </div>
-);
+    );
+};
 
 export default MenteeMainView;

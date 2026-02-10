@@ -70,8 +70,8 @@ const MenteeDetail = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <AssignmentCard />
-                <FeedbackCard />
+                <AssignmentCard menteeId={id} />
+                <FeedbackCard menteeId={id} />
               </div>
             </div>
           </div>
