@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, Save, ArrowLeft, Calendar as CalendarIcon, Clock, CheckCircle2, ChevronLeft } from 'lucide-react';
+import { ChevronRight, Save, ArrowLeft, Calendar as CalendarIcon, Clock, CheckCircle2, ChevronLeft, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -50,7 +50,7 @@ const LearningFeedback = () => {
     const [mentees, setMentees] = useState<Mentee[]>([]);
     const [selectedMenteeId, setSelectedMenteeId] = useState<string>('');
     const [assignments, setAssignments] = useState<Assignment[]>([]);
-    const [todos, setTodos] = useState<TodoItem[]>([]);
+    const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
 
     const [generalComment, setGeneralComment] = useState('');
 
@@ -69,7 +69,7 @@ const LearningFeedback = () => {
         const fetchMentees = async () => {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, nickname') // Removed 'grade' as it doesn't exist in profiles table
+                .select('id, nickname')
                 .eq('role', 'mentee');
 
             if (error) {
@@ -86,25 +86,65 @@ const LearningFeedback = () => {
         fetchMentees();
     }, []);
 
-    // Fetch Assignments
+    // Fetch Data for selected mentee and date
     useEffect(() => {
         if (!selectedMenteeId) return;
 
         const fetchData = async () => {
+            // Load Assignments
             const { data: assignmentData } = await supabase
                 .from('assignments')
                 .select('*')
                 .eq('mentee_id', selectedMenteeId);
 
             setAssignments(assignmentData || []);
+
+            // Load Existing Feedback for this date
+            const formattedDate = format(date, 'yyyy-MM-dd');
+            const { data: existingFeedback } = await supabase
+                .from('feedback')
+                .select('id, general_comment, assignment_id')
+                .eq('mentee_id', selectedMenteeId)
+                .eq('feedback_date', formattedDate)
+                .maybeSingle();
+
+            if (existingFeedback) {
+                setGeneralComment(existingFeedback.general_comment || '');
+                if (existingFeedback.assignment_id) {
+                    setSelectedAssignmentId(existingFeedback.assignment_id);
+                }
+
+                // Load Details
+                const { data: detailData } = await supabase
+                    .from('feedback_details')
+                    .select('*')
+                    .eq('feedback_id', existingFeedback.id);
+
+                if (detailData) {
+                    setSubjects(prev => prev.map(s => {
+                        const detail = detailData.find((d: any) => d.subject === s.name);
+                        return detail ? {
+                            ...s,
+                            summary: detail.summary || '',
+                            detail: detail.detail || '',
+                            is_important: detail.is_important || false
+                        } : { ...s, summary: '', detail: '', is_important: false };
+                    }));
+                }
+            } else {
+                setGeneralComment('');
+                // If no feedback in DB, we keep the locally selected assignment id (if any)
+                // so that mentors can create new feedback for a specific assignment.
+                setSubjects(prev => prev.map(s => ({ ...s, summary: '', detail: '', is_important: false })));
+            }
         };
 
         fetchData();
+    }, [selectedMenteeId, date]);
 
-        // Reset Form
-        setGeneralComment('');
-        setSubjects(prev => prev.map(s => ({ ...s, summary: '', detail: '', is_important: false })));
-
+    // Reset assignment selection when mentee changes
+    useEffect(() => {
+        setSelectedAssignmentId(null);
     }, [selectedMenteeId]);
 
 
@@ -124,7 +164,6 @@ const LearningFeedback = () => {
             const formattedDate = format(date, 'yyyy-MM-dd');
 
             // 1. Upsert Main Feedback
-            // Check if feedback exists for this date/mentee
             const { data: existingFeedback } = await supabase
                 .from('feedback')
                 .select('id')
@@ -135,26 +174,26 @@ const LearningFeedback = () => {
             let feedbackId = existingFeedback?.id;
 
             if (feedbackId) {
-                // Update
                 const { error: updateError } = await supabase
                     .from('feedback')
                     .update({
                         general_comment: generalComment,
-                        mentor_id: user.id, // Update mentor just in case
+                        assignment_id: selectedAssignmentId,
+                        mentor_id: user.id,
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', feedbackId);
 
                 if (updateError) throw updateError;
             } else {
-                // Insert
                 const { data: newFeedback, error: insertError } = await supabase
                     .from('feedback')
                     .insert({
                         mentee_id: selectedMenteeId,
                         mentor_id: user.id,
                         feedback_date: formattedDate,
-                        general_comment: generalComment
+                        general_comment: generalComment,
+                        assignment_id: selectedAssignmentId
                     })
                     .select()
                     .single();
@@ -163,8 +202,7 @@ const LearningFeedback = () => {
                 feedbackId = newFeedback.id;
             }
 
-            // 2. Handle Details (Delete all existing for this feedback and insert new active ones)
-            // Ideally we'd upsert, but delete+insert is safer without knowing unique constraints on details
+            // 2. Handle Details
             const { error: deleteError } = await supabase
                 .from('feedback_details')
                 .delete()
@@ -172,9 +210,8 @@ const LearningFeedback = () => {
 
             if (deleteError) throw deleteError;
 
-            // Prepare details to insert
             const detailsToInsert = subjects
-                .filter(s => s.summary.trim() !== '' || s.detail.trim() !== '') // Only save if content exists
+                .filter(s => s.summary.trim() !== '' || s.detail.trim() !== '')
                 .map(s => ({
                     feedback_id: feedbackId,
                     subject: s.name,
@@ -224,6 +261,8 @@ const LearningFeedback = () => {
     const prevMonth = () => setCalendarDate(subMonths(calendarDate, 1));
     const nextMonth = () => setCalendarDate(addMonths(calendarDate, 1));
 
+    const selectedAssignment = assignments.find(a => a.id === selectedAssignmentId);
+
     return (
         <div className="w-full h-full min-h-screen bg-[#f0f4ff]/50 p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-y-auto">
             {/* Header */}
@@ -250,7 +289,7 @@ const LearningFeedback = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {mentees.map(m => (
-                                        <SelectItem key={m.id} value={m.id}>{m.nickname} {m.grade && `(${m.grade})`}</SelectItem>
+                                        <SelectItem key={m.id} value={m.id}>{m.nickname}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -307,7 +346,6 @@ const LearningFeedback = () => {
                                         return (start <= weekEnd && end >= weekStart);
                                     });
 
-                                    // Sort assignments to try to keep position consistent (simple)
                                     weekAssignments.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
 
                                     return (
@@ -322,7 +360,10 @@ const LearningFeedback = () => {
                                                     return (
                                                         <div
                                                             key={dayIdx}
-                                                            onClick={() => setDate(day)}
+                                                            onClick={() => {
+                                                                setDate(day);
+                                                                setSelectedAssignmentId(null); // Clear assignment when clicking empty date
+                                                            }}
                                                             className={`
                                                                  border-r border-gray-50 p-1 cursor-pointer transition-colors relative
                                                                  ${!isCurrentMonth ? 'bg-gray-50/30 text-gray-300' : 'bg-white text-gray-700'}
@@ -345,29 +386,15 @@ const LearningFeedback = () => {
                                                 {weekAssignments.map(assignment => {
                                                     const aStart = new Date(assignment.start_date);
                                                     const aEnd = new Date(assignment.end_date);
-
-                                                    // Calculate Grid Position for this week
-                                                    // Start: Max(AssignmentStart, WeekStart)
                                                     const effectiveStart = aStart < weekStart ? weekStart : aStart;
-                                                    // End: Min(AssignmentEnd, WeekEnd)
                                                     const effectiveEnd = aEnd > weekEnd ? weekEnd : aEnd;
-
-                                                    // Column Index (0-6)
                                                     const startCol = effectiveStart.getDay();
                                                     const endCol = effectiveEnd.getDay();
-
-                                                    // Calculate Span
-                                                    // If starts and ends on same day, span 1
-                                                    // gridColumnEnd is exclusive, so + 2 relative to index for end? 
-                                                    // No, grid-column: start / end. Start is 1-based. End is exclusive.
-                                                    // e.g. Mon(1) to Mon(1): start 2, end 3.
                                                     const gridStart = startCol + 1;
                                                     const gridEnd = endCol + 2;
-
                                                     const isContinuesFromPrev = aStart < weekStart;
                                                     const isContinuesToNext = aEnd > weekEnd;
 
-                                                    // Styling
                                                     let colorClass = '';
                                                     switch (assignment.subject) {
                                                         case '국어': colorClass = 'bg-rose-100 text-rose-600 border-rose-200'; break;
@@ -380,10 +407,21 @@ const LearningFeedback = () => {
                                                     return (
                                                         <div
                                                             key={`${assignment.id}-${weekIdx}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedAssignmentId(assignment.id);
+                                                                // Also set date if it's within range and not already selected
+                                                                const aEndDate = new Date(assignment.end_date);
+                                                                if (!isWithinInterval(date, { start: new Date(assignment.start_date), end: aEndDate })) {
+                                                                    setDate(aEndDate > new Date() ? new Date() : aEndDate);
+                                                                }
+                                                                toast.info(`'${assignment.title}' 과제가 선택되었습니다.`);
+                                                            }}
                                                             className={`
-                                                                 pointer-events-auto
+                                                                 pointer-events-auto cursor-pointer transition-transform hover:scale-[1.02] active:scale-95
                                                                  h-6 flex items-center px-2 mx-1 shadow-sm text-[11px] font-bold truncate border
                                                                  ${colorClass}
+                                                                 ${selectedAssignmentId === assignment.id ? 'ring-2 ring-purple-500 ring-offset-1' : ''}
                                                                  ${isContinuesFromPrev ? 'rounded-l-none border-l-0 ml-0' : 'rounded-l-md'}
                                                                  ${isContinuesToNext ? 'rounded-r-none border-r-0 mr-0' : 'rounded-r-md'}
                                                              `}
@@ -421,53 +459,93 @@ const LearningFeedback = () => {
                             </p>
                         </div>
 
-                        <div className="space-y-4">
-                            {/* Subject Cards Grid */}
-                            <div className="grid grid-cols-1 gap-3">
-                                {subjects.map((subj) => (
-                                    <div
-                                        key={subj.name}
-                                        onClick={() => setSelectedSubject(subj)}
-                                        className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-lg hover:-translate-y-1
-                                            ${subj.summary ? 'bg-purple-50/30 border-purple-200' : 'bg-gray-50 border-transparent opacity-80 hover:opacity-100'}
-                                        `}
-                                    >
-                                        <div className="flex justify-between items-start mb-3">
-                                            <Badge className={`${subj.color} border-none shadow-none text-xs px-2 py-1`}>{subj.name}</Badge>
-                                            {subj.is_important && (
-                                                <Badge className="bg-red-500 text-white border-none text-[10px]">중요</Badge>
-                                            )}
-                                        </div>
-
-                                        {subj.summary ? (
-                                            <p className={`text-sm ${subj.is_important ? 'font-bold text-gray-800' : 'font-medium text-gray-600'} line-clamp-2 min-h-[40px]`}>
-                                                {subj.summary}
-                                            </p>
-                                        ) : (
-                                            <p className="text-xs text-gray-400 flex items-center justify-center h-10 border border-dashed border-gray-300 rounded-lg">
-                                                클릭하여 작성 +
-                                            </p>
-                                        )}
-
-                                        <div className="absolute top-5 right-5 text-gray-300">
-                                            <ChevronRight size={16} />
-                                        </div>
+                        {selectedAssignment && (
+                            <div className="mb-6 p-4 bg-purple-50 rounded-2xl border border-purple-100 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-purple-200 rounded-xl text-purple-600">
+                                        <Target size={20} />
                                     </div>
-                                ))}
+                                    <div>
+                                        <p className="text-[10px] font-bold text-purple-400 uppercase leading-none mb-1">Target Assignment</p>
+                                        <p className="text-sm font-bold text-gray-800">{selectedAssignment.title}</p>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedAssignmentId(null)}
+                                    className="text-gray-400 hover:text-red-500 font-bold text-xs"
+                                >
+                                    해제
+                                </Button>
                             </div>
+                        )}
 
-                            {/* General Comment */}
-                            <div className="bg-purple-50/50 rounded-2xl p-5 border border-purple-100 mt-4">
-                                <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2">
-                                    <span>📝</span> 멘토 총평
-                                </h3>
-                                <Textarea
-                                    value={generalComment}
-                                    onChange={(e) => setGeneralComment(e.target.value)}
-                                    placeholder="오늘의 학습 태도, 칭찬, 보완할 점 등을 자유롭게 적어주세요."
-                                    className="bg-white border-purple-100 focus-visible:ring-purple-200 min-h-[120px] resize-none rounded-xl p-4 shadow-sm"
-                                />
-                            </div>
+                        <div className="space-y-4">
+                            {!selectedAssignment ? (
+                                <div className="py-12 flex flex-col items-center justify-center text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm">
+                                        <Target className="text-gray-300" size={24} />
+                                    </div>
+                                    <p className="text-sm font-bold text-gray-400">학습 계획표에서 과제를 선택하고<br />피드백을 작성해주세요</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Selected Subject Card Only */}
+                                    {(() => {
+                                        const subj = subjects.find(s => s.name === selectedAssignment.subject) || {
+                                            name: selectedAssignment.subject,
+                                            color: 'bg-gray-100 text-gray-700',
+                                            border: 'border-gray-200',
+                                            summary: '',
+                                            detail: '',
+                                            is_important: false
+                                        };
+                                        return (
+                                            <div
+                                                onClick={() => setSelectedSubject(subj)}
+                                                className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-lg hover:-translate-y-1
+                                                    ${subj.summary ? 'bg-purple-50/30 border-purple-200' : 'bg-gray-50 border-transparent opacity-80 hover:opacity-100'}
+                                                `}
+                                            >
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <Badge className={`${subj.color} border-none shadow-none text-xs px-2 py-1`}>{subj.name}</Badge>
+                                                    {subj.is_important && (
+                                                        <Badge className="bg-red-500 text-white border-none text-[10px]">중요</Badge>
+                                                    )}
+                                                </div>
+
+                                                {subj.summary ? (
+                                                    <p className={`text-sm ${subj.is_important ? 'font-bold text-gray-800' : 'font-medium text-gray-600'} line-clamp-2 min-h-[40px]`}>
+                                                        {subj.summary}
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-sm text-gray-400 flex items-center justify-center h-10 border border-dashed border-gray-300 rounded-lg">
+                                                        {subj.name} 과제 피드백 작성하기 +
+                                                    </p>
+                                                )}
+
+                                                <div className="absolute top-5 right-5 text-gray-300">
+                                                    <ChevronRight size={16} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* General Comment */}
+                                    <div className="bg-purple-50/50 rounded-2xl p-5 border border-purple-100 mt-4">
+                                        <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2">
+                                            <span>📝</span> 멘토 총평
+                                        </h3>
+                                        <Textarea
+                                            value={generalComment}
+                                            onChange={(e) => setGeneralComment(e.target.value)}
+                                            placeholder="오늘의 학습 태도, 칭찬, 보완할 점 등을 자유롭게 적어주세요."
+                                            className="bg-white border-purple-100 focus-visible:ring-purple-200 min-h-[120px] resize-none rounded-xl p-4 shadow-sm"
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <Button onClick={handleSave} className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-6 text-lg font-bold shadow-xl shadow-purple-200 mt-8 gap-2 transition-all active:scale-95">
@@ -498,7 +576,7 @@ const LearningFeedback = () => {
                                 <span className="text-sm text-gray-500 font-medium ml-1">상세 내용을 작성해주세요</span>
                             </div>
                             <Button variant="ghost" size="icon" onClick={() => setSelectedSubject(null)} className="rounded-full bg-white/50 hover:bg-white">
-                                <ArrowLeft size={24} />
+                                <ChevronLeft size={24} />
                             </Button>
                         </div>
 
@@ -519,7 +597,7 @@ const LearningFeedback = () => {
                                 <Input
                                     value={selectedSubject.summary}
                                     onChange={(e) => updateSubjectFeedback(selectedSubject.name, 'summary', e.target.value)}
-                                    placeholder="학생이 꼭 기억해야 할 핵심 내용을 한 줄로 요약해주세요."
+                                    placeholder="핵심 내용을 한 줄로 요약해주세요."
                                     className="bg-transparent border-none text-lg font-bold px-4 pb-4 focus-visible:ring-0 placeholder:text-gray-300 placeholder:font-normal"
                                 />
                             </div>

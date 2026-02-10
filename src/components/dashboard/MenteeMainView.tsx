@@ -498,6 +498,7 @@ const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: (
     const [feedbackData, setFeedbackData] = useState<{ id: string, general_comment: string | null } | null>(null);
     const [details, setDetails] = useState<any[]>([]);
     const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
+    const [linkedAssignmentTitle, setLinkedAssignmentTitle] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -507,14 +508,37 @@ const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: (
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
                 const targetDate = format(date, 'yyyy-MM-dd');
-                const { data: mainFeedback, error: mainError } = await supabase.from('feedback').select('id, general_comment').eq('mentee_id', user.id).eq('feedback_date', targetDate).maybeSingle();
+                const { data: mainFeedback, error: mainError } = await supabase
+                    .from('feedback')
+                    .select('id, general_comment, assignment_id')
+                    .eq('mentee_id', user.id)
+                    .eq('feedback_date', targetDate)
+                    .maybeSingle();
+
                 if (mainError) throw mainError;
+
                 if (mainFeedback) {
                     setFeedbackData(mainFeedback);
+
+                    if (mainFeedback.assignment_id) {
+                        const { data: assignData } = await supabase
+                            .from('assignments')
+                            .select('title')
+                            .eq('id', mainFeedback.assignment_id)
+                            .maybeSingle();
+                        setLinkedAssignmentTitle(assignData?.title || null);
+                    } else {
+                        setLinkedAssignmentTitle(null);
+                    }
+
                     const { data: detailData, error: detailError } = await supabase.from('feedback_details').select('*').eq('feedback_id', mainFeedback.id);
                     if (detailError) throw detailError;
                     setDetails(detailData || []);
-                } else { setFeedbackData(null); setDetails([]); }
+                } else {
+                    setFeedbackData(null);
+                    setDetails([]);
+                    setLinkedAssignmentTitle(null);
+                }
             } catch (error) { console.error('Error fetching feedback:', error); } finally { setLoading(false); }
         };
         fetchFeedback();
@@ -534,7 +558,14 @@ const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: (
                     <h2 className="text-2xl font-bold font-outfit text-purple-600">FEEDBACK</h2>
                     <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 mb-1">{format(date, 'yyyy.MM.dd')}</Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">멘토의 과목별 코멘트</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground">멘토의 과목별 코멘트</p>
+                    {linkedAssignmentTitle && (
+                        <Badge className="bg-purple-100 text-purple-600 border-none font-bold text-[10px]">
+                            {linkedAssignmentTitle} 과제 피드백
+                        </Badge>
+                    )}
+                </div>
             </div>
             {loading ? (
                 <div className="flex justify-center p-8"><Loader2 className="animate-spin text-purple-400" /></div>
