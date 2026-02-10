@@ -17,14 +17,14 @@ const ProgressCard = ({ menteeId, date = new Date() }: ProgressCardProps) => {
     try {
       const todayStr = format(date, 'yyyy-MM-dd');
 
+      // 1. Fetch assignments active today (Match TodoList Limit)
       const { data: assignments } = await supabase
         .from('assignments')
         .select('is_completed')
         .eq('mentee_id', menteeId)
         .lte('start_date', todayStr)
         .gte('end_date', todayStr)
-        .order('end_date', { ascending: true })
-        .limit(2);
+        .order('end_date', { ascending: true });
 
       // 2. Fetch todos for today
       const { data: todos } = await supabase

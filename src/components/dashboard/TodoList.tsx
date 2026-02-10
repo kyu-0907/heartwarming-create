@@ -20,19 +20,22 @@ const TodoList = ({ menteeId, isReadOnly = false, date = new Date() }: TodoListP
     try {
       const targetDate = format(date, 'yyyy-MM-dd');
 
-      // 1. Fetch Assignments (Match Mentee View Limit & Order)
+      // 1. Fetch Assignments (Active today)
       const { data: assignments, error: assignError } = await supabase
         .from('assignments')
         .select('*')
         .eq('mentee_id', menteeId)
         .lte('start_date', targetDate)
         .gte('end_date', targetDate)
-        .order('end_date', { ascending: true })
-        .limit(2);
+        .order('end_date', { ascending: true });
 
-      if (assignError) throw assignError;
+      if (assignError) {
+        console.error('Assignments Fetch Error:', assignError);
+        throw assignError;
+      }
 
-      // 2. Fetch Todos
+      // 2. Fetch Todos (Active today)
+      // Note: We recently fixed the RLS policy on the 'todos' table so mentors can now view these.
       const { data: todos, error: todoError } = await supabase
         .from('todos')
         .select('*')
@@ -40,7 +43,10 @@ const TodoList = ({ menteeId, isReadOnly = false, date = new Date() }: TodoListP
         .eq('target_date', targetDate)
         .order('created_at', { ascending: true });
 
-      if (todoError) throw todoError;
+      if (todoError) {
+        console.error('Todos Fetch Error:', todoError);
+        throw todoError;
+      }
 
       const formattedAssigns = (assignments || []).map(a => ({
         id: a.id,
@@ -60,9 +66,13 @@ const TodoList = ({ menteeId, isReadOnly = false, date = new Date() }: TodoListP
         original: t
       }));
 
-      setItems([...formattedAssigns, ...formattedTodos]);
+      // Combine and set items
+      const combinedItems = [...formattedAssigns, ...formattedTodos];
+      setItems(combinedItems);
+
     } catch (error) {
       console.error('Error fetching items for mentor:', error);
+      toast.error('데이터를 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -123,7 +133,7 @@ const TodoList = ({ menteeId, isReadOnly = false, date = new Date() }: TodoListP
 
   return (
     <div className="card-dark p-4 h-full flex flex-col">
-      <h2 className="text-xl font-bold mb-4 font-outfit text-white uppercase tracking-tight">TO DO LIST</h2>
+      <h2 className="text-xl font-bold mb-4 font-outfit text-accent uppercase tracking-tight">TO DO LIST</h2>
 
       <div className="space-y-4 flex-1 overflow-y-auto scrollbar-hide">
         {loading ? (
@@ -137,17 +147,17 @@ const TodoList = ({ menteeId, isReadOnly = false, date = new Date() }: TodoListP
             >
               <div
                 className={`w-4 h-4 rounded-full border-2 transition-colors shrink-0 ${item.completed
-                  ? 'bg-accent border-accent'
+                  ? 'bg-accent border-accent shadow-[0_0_8px_rgba(45,212,191,0.5)]'
                   : 'border-muted-foreground'
                   }`}
               />
               <span className={`min-w-[50px] px-2 py-0.5 rounded-lg text-[10px] font-bold text-center shrink-0 uppercase tracking-tight ${item.type === 'assignment'
-                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                  : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                : 'bg-green-500/20 text-green-400 border border-green-500/30'
                 }`}>
                 {item.type === 'assignment' ? '과제' : item.subject || '일반'}
               </span>
-              <span className={`text-sm font-medium flex-1 truncate ${item.completed ? 'text-gray-500 line-through' : 'text-white/90'}`}>
+              <span className={`text-sm font-medium flex-1 truncate ${item.completed ? 'text-gray-500' : 'text-white/90'}`}>
                 {item.content}
               </span>
               {!isReadOnly && (

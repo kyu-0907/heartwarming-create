@@ -253,7 +253,7 @@ const SideTodoList = ({ selectedDate, menteeId }: SideTodoListProps) => {
               className={`w-full bg-[#1e2329] p-4 rounded-xl flex items-center justify-between mb-2 transition-colors hover:bg-[#252b33] ${menteeId ? 'cursor-default' : 'cursor-pointer'}`}
               onClick={() => handleToggleTodo(item.id, item.completed, item.type)}
             >
-              <span className={`text-sm font-medium truncate select-none flex-1 mr-4 ${item.completed ? 'text-gray-600 line-through' : 'text-gray-300'}`}>
+              <span className={`text-sm font-medium truncate select-none flex-1 mr-4 ${item.completed ? 'text-gray-600' : 'text-gray-300'}`}>
                 {item.content}
               </span>
 

@@ -419,7 +419,7 @@ const ToDoListContent = ({ date, onAddClick }: { date: Date; onAddClick: () => v
                                 <Badge className={`${item.type === 'assignment' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'} border-none shadow-none font-bold min-w-[50px] justify-center`}>
                                     {item.type === 'assignment' ? '과제' : item.subject || '일반'}
                                 </Badge>
-                                <span className={`text-sm font-medium flex-1 truncate ${item.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.content}</span>
+                                <span className={`text-sm font-medium flex-1 truncate ${item.completed ? 'text-gray-400' : 'text-gray-700'}`}>{item.content}</span>
                                 <button onClick={(e) => { e.stopPropagation(); handleDelete(item); }} className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all">
                                     <Trash2 size={14} />
                                 </button>
