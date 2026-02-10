@@ -86,6 +86,8 @@ const LearningFeedback = () => {
         fetchMentees();
     }, []);
 
+    const [verifications, setVerifications] = useState<any[]>([]);
+
     // Fetch Data for selected mentee and date
     useEffect(() => {
         if (!selectedMenteeId) return;
@@ -98,6 +100,14 @@ const LearningFeedback = () => {
                 .eq('mentee_id', selectedMenteeId);
 
             setAssignments(assignmentData || []);
+
+            // Load Verifications
+            const { data: verificationData } = await supabase
+                .from('assignment_verifications')
+                .select('*')
+                .eq('mentee_id', selectedMenteeId);
+
+            setVerifications(verificationData || []);
 
             // Load Existing Feedback for this date
             const formattedDate = format(date, 'yyyy-MM-dd');
@@ -141,6 +151,14 @@ const LearningFeedback = () => {
 
         fetchData();
     }, [selectedMenteeId, date]);
+
+    const isAssignmentVerified = (assignmentId: string) => {
+        return verifications.some(v => v.assignment_id === assignmentId);
+    };
+
+    const getVerificationForAssignment = (assignmentId: string) => {
+        return verifications.find(v => v.assignment_id === assignmentId);
+    };
 
     // Reset assignment selection when mentee changes
     useEffect(() => {
@@ -404,6 +422,8 @@ const LearningFeedback = () => {
                                                         default: colorClass = 'bg-gray-100 text-gray-600 border-gray-200';
                                                     }
 
+                                                    const isVerified = isAssignmentVerified(assignment.id);
+
                                                     return (
                                                         <div
                                                             key={`${assignment.id}-${weekIdx}`}
@@ -415,7 +435,12 @@ const LearningFeedback = () => {
                                                                 if (!isWithinInterval(date, { start: new Date(assignment.start_date), end: aEndDate })) {
                                                                     setDate(aEndDate > new Date() ? new Date() : aEndDate);
                                                                 }
-                                                                toast.info(`'${assignment.title}' 과제가 선택되었습니다.`);
+
+                                                                if (!isVerified) {
+                                                                    toast.warning('공부 인증이 완료되지 않은 과제입니다.');
+                                                                } else {
+                                                                    toast.success(`'${assignment.title}' 인증 확인 완료`);
+                                                                }
                                                             }}
                                                             className={`
                                                                  pointer-events-auto cursor-pointer transition-transform hover:scale-[1.02] active:scale-95
@@ -424,14 +449,18 @@ const LearningFeedback = () => {
                                                                  ${selectedAssignmentId === assignment.id ? 'ring-2 ring-purple-500 ring-offset-1' : ''}
                                                                  ${isContinuesFromPrev ? 'rounded-l-none border-l-0 ml-0' : 'rounded-l-md'}
                                                                  ${isContinuesToNext ? 'rounded-r-none border-r-0 mr-0' : 'rounded-r-md'}
+                                                                 ${!isVerified ? 'opacity-50 grayscale-[0.3]' : ''}
                                                              `}
                                                             style={{
                                                                 gridColumnStart: gridStart,
                                                                 gridColumnEnd: gridEnd
                                                             }}
-                                                            title={assignment.title}
+                                                            title={`${assignment.title}${!isVerified ? ' (미인증)' : ' (인증완료)'}`}
                                                         >
-                                                            <span className="w-full text-center truncate">{assignment.title}</span>
+                                                            <div className="w-full flex items-center justify-center gap-1">
+                                                                {isVerified && <CheckCircle2 size={10} className="shrink-0" />}
+                                                                <span className="truncate">{assignment.title}</span>
+                                                            </div>
                                                         </div>
                                                     );
                                                 })}
@@ -491,8 +520,29 @@ const LearningFeedback = () => {
                                 </div>
                             ) : (
                                 <>
-                                    {/* Selected Subject Card Only */}
+                                    {/* Verification Check */}
                                     {(() => {
+                                        const verification = getVerificationForAssignment(selectedAssignment.id);
+                                        const isVerified = !!verification;
+
+                                        if (!isVerified) {
+                                            return (
+                                                <div className="p-6 bg-amber-50 rounded-2xl border border-amber-200 text-center space-y-3">
+                                                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mx-auto">
+                                                        <Clock className="text-amber-600" size={20} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <p className="font-bold text-amber-800">공부 인증 대기 중</p>
+                                                        <p className="text-xs text-amber-600 leading-relaxed">
+                                                            학생이 해당 과제에 대한 공부 인증을<br />
+                                                            완료한 후에 피드백을 작성할 수 있습니다.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+
+                                        // If verified, show verification content and feedback cards
                                         const subj = subjects.find(s => s.name === selectedAssignment.subject) || {
                                             name: selectedAssignment.subject,
                                             color: 'bg-gray-100 text-gray-700',
@@ -501,49 +551,71 @@ const LearningFeedback = () => {
                                             detail: '',
                                             is_important: false
                                         };
+
                                         return (
-                                            <div
-                                                onClick={() => setSelectedSubject(subj)}
-                                                className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-lg hover:-translate-y-1
-                                                    ${subj.summary ? 'bg-purple-50/30 border-purple-200' : 'bg-gray-50 border-transparent opacity-80 hover:opacity-100'}
-                                                `}
-                                            >
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <Badge className={`${subj.color} border-none shadow-none text-xs px-2 py-1`}>{subj.name}</Badge>
-                                                    {subj.is_important && (
-                                                        <Badge className="bg-red-500 text-white border-none text-[10px]">중요</Badge>
+                                            <div className="space-y-6">
+                                                {/* Verification Content Preview */}
+                                                <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Student Verification</span>
+                                                        <Badge className="bg-blue-500 text-white border-none text-[10px]">인증 완료</Badge>
+                                                    </div>
+                                                    {verification.image_url && (
+                                                        <div className="aspect-video w-full rounded-xl overflow-hidden border border-blue-100 shadow-sm bg-white">
+                                                            <img src={verification.image_url} alt="Verification" className="w-full h-full object-cover" />
+                                                        </div>
                                                     )}
+                                                    <div className="bg-white/80 rounded-xl p-3 border border-blue-50 shadow-sm">
+                                                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap italic">
+                                                            "{verification.content || '입력된 내용이 없습니다.'}"
+                                                        </p>
+                                                    </div>
                                                 </div>
 
-                                                {subj.summary ? (
-                                                    <p className={`text-sm ${subj.is_important ? 'font-bold text-gray-800' : 'font-medium text-gray-600'} line-clamp-2 min-h-[40px]`}>
-                                                        {subj.summary}
-                                                    </p>
-                                                ) : (
-                                                    <p className="text-sm text-gray-400 flex items-center justify-center h-10 border border-dashed border-gray-300 rounded-lg">
-                                                        {subj.name} 과제 피드백 작성하기 +
-                                                    </p>
-                                                )}
+                                                {/* Feedback Input Card */}
+                                                <div
+                                                    onClick={() => setSelectedSubject(subj)}
+                                                    className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-lg hover:-translate-y-1
+                                                        ${subj.summary ? 'bg-purple-50/30 border-purple-200' : 'bg-white border-gray-100 hover:border-purple-200'}
+                                                    `}
+                                                >
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <Badge className={`${subj.color} border-none shadow-none text-xs px-2 py-1`}>{subj.name}</Badge>
+                                                        {subj.is_important && (
+                                                            <Badge className="bg-red-500 text-white border-none text-[10px]">중요</Badge>
+                                                        )}
+                                                    </div>
 
-                                                <div className="absolute top-5 right-5 text-gray-300">
-                                                    <ChevronRight size={16} />
+                                                    {subj.summary ? (
+                                                        <p className={`text-sm ${subj.is_important ? 'font-bold text-gray-800' : 'font-medium text-gray-600'} line-clamp-2 min-h-[40px]`}>
+                                                            {subj.summary}
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-sm text-gray-400 flex items-center justify-center h-10 border border-dashed border-gray-300 rounded-lg">
+                                                            {subj.name} 과제 피드백 작성하기 +
+                                                        </p>
+                                                    )}
+
+                                                    <div className="absolute top-5 right-5 text-gray-300">
+                                                        <ChevronRight size={16} />
+                                                    </div>
+                                                </div>
+
+                                                {/* General Comment */}
+                                                <div className="bg-purple-50/50 rounded-2xl p-5 border border-purple-100">
+                                                    <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2">
+                                                        <span>📝</span> 멘토 총평
+                                                    </h3>
+                                                    <Textarea
+                                                        value={generalComment}
+                                                        onChange={(e) => setGeneralComment(e.target.value)}
+                                                        placeholder="오늘의 학습 태도, 칭찬, 보완할 점 등을 자유롭게 적어주세요."
+                                                        className="bg-white border-purple-100 focus-visible:ring-purple-200 min-h-[120px] resize-none rounded-xl p-4 shadow-sm"
+                                                    />
                                                 </div>
                                             </div>
                                         );
                                     })()}
-
-                                    {/* General Comment */}
-                                    <div className="bg-purple-50/50 rounded-2xl p-5 border border-purple-100 mt-4">
-                                        <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2">
-                                            <span>📝</span> 멘토 총평
-                                        </h3>
-                                        <Textarea
-                                            value={generalComment}
-                                            onChange={(e) => setGeneralComment(e.target.value)}
-                                            placeholder="오늘의 학습 태도, 칭찬, 보완할 점 등을 자유롭게 적어주세요."
-                                            className="bg-white border-purple-100 focus-visible:ring-purple-200 min-h-[120px] resize-none rounded-xl p-4 shadow-sm"
-                                        />
-                                    </div>
                                 </>
                             )}
                         </div>
