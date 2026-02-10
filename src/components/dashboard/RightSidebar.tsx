@@ -70,9 +70,8 @@ const RightSidebar = ({ showMemo = false, mobileOpen = false, onMobileClose }: R
                 </div>
 
                 <CalendarWidget selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-                <EventWidget selectedDate={selectedDate} />
-                <SideTodoList />
-                {showMemo && <MemoWidget />}
+                <SideTodoList selectedDate={selectedDate || new Date()} />
+                <MemoWidget />
             </aside>
         </>
     );

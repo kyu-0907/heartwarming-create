@@ -446,16 +446,43 @@ const TaskContent = ({ date, onVerifyClick }: { date: Date; onVerifyClick: () =>
 
                 const targetDate = format(date, 'yyyy-MM-dd');
 
-                // Fetch assignments that include the selected date
-                const { data, error } = await supabase
-                    .from('assignments')
-                    .select('*')
-                    .eq('mentee_id', user.id)
-                    .lte('start_date', targetDate)
-                    .gte('end_date', targetDate);
+                // Check Role
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                let query = supabase.from('assignments').select('*');
+
+                if (profile?.role === 'mentor') {
+                    // Mentor sees all assignments they created
+                    query = query.eq('mentor_id', user.id);
+                } else {
+                    // Mentee sees assignments assigned to them
+                    query = query.eq('mentee_id', user.id);
+                }
+
+                const { data, error } = await query;
 
                 if (error) throw error;
-                setTasks(data || []);
+
+                // Filter in JS: Show all active and future assignments (end_date >= today)
+                // We do NOT filter by start_date, so future assignments are visible too.
+                const today = format(new Date(), 'yyyy-MM-dd');
+
+                console.log('Mentee View: Fetching all active/future tasks from:', today);
+                console.log('Mentee View: All Tasks:', data);
+
+                const filteredTasks = (data || []).filter((task: any) => {
+                    // Show if not expired (end_date is today or future)
+                    return task.end_date >= today;
+                });
+
+                // Sort by deadline (soonest first)
+                filteredTasks.sort((a: any, b: any) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime());
+
+                setTasks(filteredTasks);
             } catch (error) {
                 console.error('Error fetching tasks:', error);
             } finally {

@@ -3,14 +3,21 @@ import { Plus, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 interface SideTodoItem {
   id: string;
   content: string;
   completed: boolean;
+  type?: 'personal' | 'assignment';
 }
 
-const SideTodoList = () => {
+interface SideTodoListProps {
+  selectedDate: Date;
+}
+
+const SideTodoList = ({ selectedDate }: SideTodoListProps) => {
   const [todos, setTodos] = useState<SideTodoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -18,6 +25,7 @@ const SideTodoList = () => {
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const mentorName = user.nickname || '나';
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
   const fetchTodos = async () => {
     setLoading(true);
@@ -25,14 +33,75 @@ const SideTodoList = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      // 1. Fetch Personal Todos for selected date
+      const { data: personalData, error: personalError } = await supabase
         .from('todos')
         .select('*')
         .eq('user_id', user.id)
+        .eq('target_date', selectedDateStr)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setTodos(data || []);
+      if (personalError) throw personalError;
+
+      const personalTodos: SideTodoItem[] = (personalData || []).map(t => ({
+        ...t,
+        type: 'personal' // Explicitly mark as personal
+      }));
+
+      // 2. Fetch Assignments active on selected date
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from('assignments')
+        .select('*')
+        .eq('mentor_id', user.id);
+
+      if (assignmentError) throw assignmentError;
+
+      // 3. Fetch mentee nicknames manually
+      const menteeIds = Array.from(new Set((assignmentData || []).map((a: any) => a.mentee_id)));
+      let menteeMap: Record<string, string> = {};
+
+      if (menteeIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, nickname')
+          .in('id', menteeIds);
+
+        (profiles || []).forEach((p: any) => {
+          menteeMap[p.id] = p.nickname;
+        });
+      }
+
+      console.log('Selected Date (Str):', selectedDateStr);
+      console.log('Assignments (Raw):', assignmentData);
+
+      const assignmentDataFiltered = (assignmentData || []).filter((a: any) => {
+        const isValid = a.start_date <= selectedDateStr && a.end_date >= selectedDateStr;
+        console.log(`Checking: ${a.title} (${a.start_date} ~ ${a.end_date}) vs ${selectedDateStr} => ${isValid}`);
+        return isValid;
+      });
+
+      const assignmentTodos: SideTodoItem[] = assignmentDataFiltered.map((a: any) => {
+        const isEndDate = a.end_date === selectedDateStr;
+        const menteeName = menteeMap[a.mentee_id] || '멘티';
+        let content = '';
+
+        if (isEndDate) {
+          content = `[${menteeName}] ${a.title} 과제 검사 및 피드백`;
+        } else {
+          content = `[${menteeName}] ${a.title} 과제 모니터링`;
+        }
+
+        return {
+          id: `assignment-${a.id}`, // Virtual ID
+          content: content,
+          completed: false,
+          type: 'assignment'
+        };
+      });
+
+      // Combine lists
+      setTodos([...personalTodos, ...assignmentTodos]);
+
     } catch (error) {
       console.error('Error fetching todos:', error);
     } finally {
@@ -42,7 +111,7 @@ const SideTodoList = () => {
 
   useEffect(() => {
     fetchTodos();
-  }, []);
+  }, [selectedDateStr]);
 
   const handleAddTodo = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -58,7 +127,8 @@ const SideTodoList = () => {
         const { error } = await supabase.from('todos').insert({
           user_id: user.id,
           content: newTodoContent,
-          completed: false
+          completed: false,
+          target_date: selectedDateStr // Save with selected date
         });
 
         if (error) throw error;
@@ -74,7 +144,9 @@ const SideTodoList = () => {
     }
   };
 
-  const handleToggleTodo = async (id: string, currentCompleted: boolean) => {
+  const handleToggleTodo = async (id: string, currentCompleted: boolean, type?: string) => {
+    if (type === 'assignment') return;
+
     try {
       const { error } = await supabase
         .from('todos')
@@ -94,7 +166,7 @@ const SideTodoList = () => {
   };
 
   const handleDeleteTodo = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // 부모 클릭 방지
+    e.stopPropagation();
     try {
       const { error } = await supabase
         .from('todos')
@@ -103,7 +175,6 @@ const SideTodoList = () => {
 
       if (error) throw error;
 
-      // Optimistic update
       setTodos(todos.filter(todo => todo.id !== id));
       toast.success('삭제되었습니다.');
     } catch (error) {
@@ -116,7 +187,7 @@ const SideTodoList = () => {
     <div className="mt-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-foreground text-sm md:text-base flex items-center gap-1">
-          <span className="text-primary font-extrabold">{mentorName} 멘토</span>의 TO DO LIST
+          <span className="text-primary font-extrabold">{format(selectedDate, 'M.d(eee)', { locale: ko })}</span> 일정
         </h3>
         <button
           onClick={() => setIsAdding(true)}
@@ -148,29 +219,33 @@ const SideTodoList = () => {
             <Loader2 className="animate-spin text-primary w-5 h-5" />
           </div>
         ) : todos.length === 0 && !isAdding ? (
-          <div className="text-center text-xs text-muted-foreground py-4">등록된 할 일이 없습니다.</div>
+          <div className="text-center text-xs text-muted-foreground py-4">등록된 일정이 없습니다.</div>
         ) : (
           todos.map((item) => (
             <div
               key={item.id}
-              className="card-dark p-2.5 md:p-3 rounded-xl flex items-center justify-between group cursor-pointer hover:bg-black/60 transition-colors"
-              onClick={() => handleToggleTodo(item.id, item.completed)}
+              className="w-full bg-[#1e2329] p-4 rounded-xl flex items-center justify-between cursor-pointer mb-2 transition-colors hover:bg-[#252b33]"
+              onClick={() => handleToggleTodo(item.id, item.completed, item.type)}
             >
-              <span className="text-xs md:text-sm truncate select-none flex-1 mr-2 text-white">
+              <span className={`text-sm font-medium truncate select-none flex-1 mr-4 ${item.completed ? 'text-gray-600 line-through' : 'text-gray-300'}`}>
                 {item.content}
               </span>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => handleDeleteTodo(e, item.id)}
-                  className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                >
-                  <Trash2 size={14} />
-                </button>
+                {item.type === 'personal' && (
+                  <button
+                    onClick={(e) => handleDeleteTodo(e, item.id)}
+                    className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
                 <div
-                  className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full border-2 shrink-0 transition-colors duration-200 ${item.completed
-                    ? 'bg-accent border-accent'
-                    : 'border-muted-foreground group-hover:border-accent/50'
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 transition-all duration-200 ${item.type === 'assignment'
+                      ? 'bg-[#2dd4bf]' // 과제는 항상 청록색 점
+                      : item.completed
+                        ? 'bg-[#2dd4bf]' // 완료됨
+                        : 'border-2 border-gray-500 bg-transparent' // 미완료
                     }`}
                 />
               </div>

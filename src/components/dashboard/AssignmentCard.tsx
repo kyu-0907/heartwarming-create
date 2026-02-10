@@ -32,8 +32,11 @@ const AssignmentCard = ({ menteeId }: AssignmentCardProps) => {
             .from('assignments')
             .select('id, subject, title, file_url, start_date, end_date')
             .eq('mentee_id', menteeId)
-            .lte('start_date', today)
-            .gte('end_date', today);
+            .eq('mentee_id', menteeId)
+            // Show all assignments that are not expired (end_date >= today)
+            // This includes future assignments (start_date > today)
+            .gte('end_date', today)
+            .order('end_date', { ascending: true });
 
           if (error) throw error;
           setAssignments(data || []);
