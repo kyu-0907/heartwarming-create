@@ -21,6 +21,7 @@ interface MenteePlannerViewProps {
 
 const MenteePlannerView = ({ onBack }: MenteePlannerViewProps) => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [userComment, setUserComment] = useState(''); // Student Comment
     const [plans, setPlans] = useState<Plan[]>([
         { id: 1, title: '9시에서 12시까지의 공부 주제', content: '9시에서 12시까지의 공부 내용', startTime: 9, endTime: 12, day: '2026-02-10' },
         { id: 2, title: '2시에서 7시까지의 공부 주제', content: '2시에서 7시까지의 공부 내용', startTime: 14, endTime: 19, day: '2026-02-10' },
@@ -64,6 +65,7 @@ const MenteePlannerView = ({ onBack }: MenteePlannerViewProps) => {
     return (
         <div className="w-full h-full flex flex-col bg-[#f0f4ff]/50 relative animate-in slide-in-from-right duration-300">
             {/* Header */}
+            {/* ... Header code unchanged ... */}
             <div className="p-6 pb-2">
                 <Button variant="ghost" size="icon" onClick={onBack} className="-ml-2 mb-2">
                     <ArrowLeft size={24} />
@@ -81,6 +83,17 @@ const MenteePlannerView = ({ onBack }: MenteePlannerViewProps) => {
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto scrollbar-hide p-6 pt-0">
+
+                {/* 1. Student Comment Area (New Requirement) */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm mb-6 mt-2 border border-blue-100">
+                    <Textarea
+                        value={userComment}
+                        onChange={(e) => setUserComment(e.target.value)}
+                        placeholder="오늘의 각오나 멘토님에게 남길 질문을 적어보세요."
+                        className="border-none resize-none focus-visible:ring-0 p-0 text-sm min-h-[40px] placeholder:text-gray-400"
+                    />
+                </div>
+
                 {/* Timeline */}
                 <div className="relative mt-4 mb-12" style={{ height: '1600px' }}>
                     {Array.from({ length: 24 }, (_, i) => i + 6).map((h, idx) => {

@@ -548,82 +548,173 @@ const TaskContent = ({ date, onVerifyClick }: { date: Date; onVerifyClick: () =>
 };
 
 const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: () => void }) => {
-    const [todayFeedback, setTodayFeedback] = useState<string | null>(null);
-    const [yesterdayFeedback, setYesterdayFeedback] = useState<string | null>(null);
+    const [feedbackData, setFeedbackData] = useState<{ id: string, general_comment: string | null } | null>(null);
+    const [details, setDetails] = useState<any[]>([]);
+    const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         const fetchFeedback = async () => {
+            setLoading(true);
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
 
-                const todayStr = format(date, 'yyyy-MM-dd');
-                const yesterdayStr = format(subDays(date, 1), 'yyyy-MM-dd');
+                const targetDate = format(date, 'yyyy-MM-dd');
 
-                // Fetch Today's Feedback
-                const { data: todayData } = await supabase
-                    .from('feedbacks')
-                    .select('content')
+                // 1. Fetch Main Feedback
+                const { data: mainFeedback, error: mainError } = await supabase
+                    .from('feedback')
+                    .select('id, general_comment')
                     .eq('mentee_id', user.id)
-                    .eq('created_at', todayStr)
+                    .eq('feedback_date', targetDate)
                     .single();
 
-                setTodayFeedback(todayData?.content || null);
+                if (mainError && mainError.code !== 'PGRST116') throw mainError; // PGRST116 is "no rows found"
 
-                // Fetch Yesterday's Feedback
-                const { data: yesterdayData } = await supabase
-                    .from('feedbacks')
-                    .select('content')
-                    .eq('mentee_id', user.id)
-                    .eq('created_at', yesterdayStr)
-                    .single();
+                if (mainFeedback) {
+                    setFeedbackData(mainFeedback);
 
-                setYesterdayFeedback(yesterdayData?.content || null);
+                    // 2. Fetch Details
+                    const { data: detailData, error: detailError } = await supabase
+                        .from('feedback_details')
+                        .select('*')
+                        .eq('feedback_id', mainFeedback.id);
+
+                    if (detailError) throw detailError;
+                    setDetails(detailData || []);
+                } else {
+                    setFeedbackData(null);
+                    setDetails([]);
+                }
 
             } catch (error) {
                 console.error('Error fetching feedback:', error);
+            } finally {
+                setLoading(false);
             }
         };
 
         fetchFeedback();
     }, [date]);
 
+    // Helper to find detail by subject
+    const getDetailBySubject = (subj: string) => details.find(d => d.subject === subj);
+
+    const subjects = [
+        { name: '국어', color: 'bg-rose-100 text-rose-700', border: 'border-rose-200' },
+        { name: '영어', color: 'bg-blue-100 text-blue-700', border: 'border-blue-200' },
+        { name: '수학', color: 'bg-amber-100 text-amber-700', border: 'border-amber-200' },
+    ];
+
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 relative">
             <div className="flex flex-col gap-1">
-                <h2 className="text-2xl font-bold font-outfit">FEEDBACK</h2>
-                <p className="text-sm text-muted-foreground">멘토의 피드백</p>
+                <div className="flex justify-between items-end">
+                    <h2 className="text-2xl font-bold font-outfit text-purple-600">FEEDBACK</h2>
+                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 mb-1">
+                        {format(date, 'yyyy.MM.dd')}
+                    </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">멘토의 과목별 코멘트</p>
             </div>
 
-            <div className="space-y-6">
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-gray-800">Today</h3>
-                        <Badge variant="outline" className="bg-purple-100 text-purple-700 border-none">{format(date, 'yyyy.MM.dd')}</Badge>
+            {loading ? (
+                <div className="flex justify-center p-8"><Loader2 className="animate-spin text-purple-400" /></div>
+            ) : (
+                <div className="space-y-4">
+                    {/* Subject Cards */}
+                    <div className="grid gap-3">
+                        {subjects.map((subj) => {
+                            const detail = getDetailBySubject(subj.name);
+                            return (
+                                <div
+                                    key={subj.name}
+                                    onClick={() => detail && setSelectedDetail(detail)}
+                                    className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md 
+                                        ${detail ? 'bg-white border-purple-100 hover:border-purple-300' : 'bg-gray-50 border-transparent opacity-80'}
+                                    `}
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <Badge className={`${subj.color} border-none shadow-none text-xs`}>{subj.name}</Badge>
+                                        {detail?.is_important && (
+                                            <Badge className="bg-red-500 text-white border-none text-[10px] animate-pulse">중요</Badge>
+                                        )}
+                                    </div>
+
+                                    {detail ? (
+                                        <p className={`text-sm ${detail.is_important ? 'font-bold text-gray-800' : 'font-medium text-gray-600'} line-clamp-2`}>
+                                            {detail.summary}
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-gray-400">등록된 피드백이 없습니다.</p>
+                                    )}
+
+                                    {detail && (
+                                        <div className="absolute top-4 right-4 text-gray-300">
+                                            <ChevronRight size={16} />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
-                    <div className="bg-purple-50 rounded-2xl p-4 min-h-[100px] shadow-inner text-sm text-gray-700 whitespace-pre-wrap flex items-center justify-center">
-                        {todayFeedback ? (
-                            <div className="w-full text-left">{todayFeedback}</div>
-                        ) : (
-                            <span className="text-muted-foreground">멘토가 아직 피드백 하지 않았어요.</span>
-                        )}
+
+                    {/* General Comment */}
+                    <div className="bg-purple-50/50 rounded-2xl p-5 border border-purple-100">
+                        <h3 className="font-bold text-gray-800 text-sm mb-2 flex items-center gap-2">
+                            <span>📝</span> 멘토 총평
+                        </h3>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
+                            {feedbackData?.general_comment || "아직 총평이 등록되지 않았습니다."}
+                        </p>
                     </div>
                 </div>
+            )}
 
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-gray-800">Yesterday</h3>
-                        <Badge variant="outline" className="bg-purple-100 text-purple-700 border-none">{format(subDays(date, 1), 'yyyy.MM.dd')}</Badge>
-                    </div>
-                    <div className="bg-purple-50 rounded-2xl p-4 min-h-[100px] shadow-inner text-sm text-gray-700 whitespace-pre-wrap">
-                        {yesterdayFeedback || <span className="text-muted-foreground">피드백 내용이 없습니다.</span>}
-                    </div>
-                </div>
-            </div>
-
-            <Button onClick={onReportClick} className="w-full bg-purple-400 hover:bg-purple-500 text-white rounded-xl py-6 text-lg font-bold shadow-lg">
+            <Button onClick={onReportClick} className="w-full bg-purple-400 hover:bg-purple-500 text-white rounded-xl py-6 text-lg font-bold shadow-lg mt-4">
                 학습 리포트 보기
             </Button>
+
+            {/* Detail Modal Overlay */}
+            {selectedDetail && (
+                <div
+                    className="absolute inset-0 z-50 bg-white/95 backdrop-blur-sm rounded-[2rem] p-6 animate-in fade-in zoom-in-95 duration-200 flex flex-col"
+                    onClick={(e) => { e.stopPropagation(); }}
+                >
+                    <div className="flex justify-between items-center mb-6">
+                        <Badge className="bg-purple-100 text-purple-700 text-lg py-1 px-3">
+                            {selectedDetail.subject} 피드백
+                        </Badge>
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedDetail(null)}>
+                            <ChevronLeft size={24} />
+                        </Button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto scrollbar-hide space-y-6">
+                        <div className="bg-purple-50 rounded-2xl p-5 border border-purple-100">
+                            <span className="text-xs font-bold text-purple-500 block mb-2">요약</span>
+                            <p className="text-lg font-bold text-gray-800 leading-snug">
+                                {selectedDetail.summary}
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <span className="text-xs font-bold text-gray-400 ml-1">상세 내용</span>
+                            <div className="bg-white rounded-2xl p-4 text-gray-700 leading-relaxed text-sm whitespace-pre-wrap shadow-sm border border-gray-100">
+                                {selectedDetail.detail || "상세 내용이 없습니다."}
+                            </div>
+                        </div>
+                    </div>
+
+                    <Button
+                        onClick={() => setSelectedDetail(null)}
+                        className="w-full bg-gray-900 text-white rounded-xl py-4 font-bold mt-4 shadow-lg"
+                    >
+                        닫기
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };
