@@ -8,6 +8,8 @@ import MenteeDetail from "./pages/MenteeDetail";
 import WeeklyReportDetail from "./pages/WeeklyReportDetail";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import DevelopmentInProgress from "./pages/DevelopmentInProgress";
+import LearningFeedback from "./pages/LearningFeedback";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +61,11 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          <Route path="/learning" element={<ProtectedRoute><LearningFeedback /></ProtectedRoute>} />
+          <Route path="/schedule" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
+          <Route path="/stats" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

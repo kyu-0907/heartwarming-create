@@ -58,14 +58,14 @@ const MenteeDetail = () => {
           {/* 상단 그리드 - 반응형 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             {/* TO DO LIST */}
-            <div className="lg:col-span-1">
-              <TodoList />
+            <div className="lg:col-span-1 h-full">
+              <TodoList menteeId={id!} isReadOnly={true} />
             </div>
 
             {/* 오른쪽 통계 카드들 */}
             <div className="lg:col-span-2 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ProgressCard />
+                <ProgressCard menteeId={id!} />
                 <StudyTimeCard />
               </div>
 
@@ -77,7 +77,7 @@ const MenteeDetail = () => {
           </div>
 
           {/* 질의응답 섹션 */}
-          <QnASection />
+          <QnASection menteeId={id!} />
 
           {/* 리포트 섹션 */}
           <ReportSection />

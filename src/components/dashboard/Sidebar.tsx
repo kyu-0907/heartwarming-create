@@ -11,7 +11,7 @@ interface SidebarProps {
 
 const menuItems = [
   { icon: Lightbulb, label: '대시보드', path: '/' },
-  { icon: BookOpen, label: '학습', path: '/learning' },
+  { icon: BookOpen, label: '학습 및 피드백', path: '/learning' },
   { icon: Calendar, label: '일정', path: '/schedule' },
   { icon: MessageCircle, label: '메시지', path: '/messages' },
   { icon: BarChart3, label: '통계', path: '/stats' },
