@@ -30,6 +30,8 @@ const monthlyReports: MonthlyReport[] = [
 const ReportSection = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isMentor = user.role === 'mentor';
 
   return (
     <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -37,7 +39,7 @@ const ReportSection = () => {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="section-title text-base md:text-lg">주간 학습 리포트</h2>
-          <button className="btn-accent text-xs md:text-sm">작성하기</button>
+          {isMentor && <button className="btn-accent text-xs md:text-sm">작성하기</button>}
         </div>
 
         <div className="space-y-2">
@@ -61,13 +63,17 @@ const ReportSection = () => {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="section-title text-base md:text-lg">월간 학습 리포트</h2>
-          <button className="btn-accent text-xs md:text-sm">작성하기</button>
+          {isMentor && <button className="btn-accent text-xs md:text-sm">작성하기</button>}
         </div>
 
         <div className="space-y-2">
           {monthlyReports.map((report) => (
-            <div key={report.month} className="card-dark p-3 rounded-xl flex items-center gap-4">
-              <span className="text-xs md:text-sm font-medium w-10 md:w-12 shrink-0">{report.month}</span>
+            <div
+              key={report.month}
+              className="report-row cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => navigate(`/mentee/${id || '1'}/report/monthly-${report.month.replace('개월', '')}`)}
+            >
+              <span className="text-xs md:text-sm font-medium text-foreground w-10 md:w-12 shrink-0">{report.month}</span>
               <span className="text-xs md:text-sm text-muted-foreground flex-1">{report.label}</span>
               {report.deadline && (
                 <span className="text-xs text-muted-foreground hidden md:block">{report.deadline}</span>

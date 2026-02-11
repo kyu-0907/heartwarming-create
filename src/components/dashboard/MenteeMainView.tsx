@@ -495,7 +495,7 @@ const TaskContent = ({ date, onVerifyClick }: { date: Date; onVerifyClick: () =>
 };
 
 const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: () => void }) => {
-    const [feedbackData, setFeedbackData] = useState<{ id: string, general_comment: string | null } | null>(null);
+    const [feedbackData, setFeedbackData] = useState<{ id: string, general_comment: string | null, assignment_id?: string | null } | null>(null);
     const [details, setDetails] = useState<any[]>([]);
     const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
     const [linkedAssignmentTitle, setLinkedAssignmentTitle] = useState<string | null>(null);
@@ -577,7 +577,14 @@ const FeedbackContent = ({ date, onReportClick }: { date: Date; onReportClick: (
                             return (
                                 <div key={subj.name} onClick={() => detail && setSelectedDetail(detail)} className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md ${detail ? 'bg-white border-purple-100 hover:border-purple-300' : 'bg-gray-50 border-transparent opacity-80'}`}>
                                     <div className="flex justify-between items-start mb-2">
-                                        <Badge className={`${subj.color} border-none shadow-none text-xs`}>{subj.name}</Badge>
+                                        <div className="flex items-center gap-2">
+                                            <Badge className={`${subj.color} border-none shadow-none text-xs`}>{subj.name}</Badge>
+                                            {linkedAssignmentTitle && feedbackData?.assignment_id && (
+                                                <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-600 border-purple-100 font-bold">
+                                                    과제 피드백
+                                                </Badge>
+                                            )}
+                                        </div>
                                         {detail?.is_important && <Badge className="bg-red-500 text-white border-none text-[10px] animate-pulse">중요</Badge>}
                                     </div>
                                     {detail ? (
