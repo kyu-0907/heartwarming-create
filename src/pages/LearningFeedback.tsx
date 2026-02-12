@@ -77,15 +77,12 @@ const LearningFeedback = () => {
     const [selectedSubject, setSelectedSubject] = useState<typeof subjects[0] | null>(null);
 
     // Initial load from navigation state
+    // Initial load from navigation state (Date only)
     useEffect(() => {
-        if (location.state) {
-            const { targetMenteeId, targetDate } = location.state;
-            if (targetMenteeId) setSelectedMenteeId(targetMenteeId);
-            if (targetDate) {
-                const dateObj = new Date(targetDate);
-                setDate(dateObj);
-                setCalendarDate(dateObj);
-            }
+        if (location.state?.targetDate) {
+            const dateObj = new Date(location.state.targetDate);
+            setDate(dateObj);
+            setCalendarDate(dateObj);
         }
     }, [location.state]);
 
@@ -105,7 +102,12 @@ const LearningFeedback = () => {
 
             if (data && data.length > 0) {
                 setMentees(data);
-                setSelectedMenteeId(data[0].id);
+                const state = location.state as any;
+                if (state?.targetMenteeId) {
+                    setSelectedMenteeId(state.targetMenteeId);
+                } else {
+                    setSelectedMenteeId(data[0].id);
+                }
             }
         };
         fetchMentees();
@@ -185,10 +187,15 @@ const LearningFeedback = () => {
         return verifications.find(v => v.assignment_id === assignmentId);
     };
 
-    // Reset assignment selection when mentee changes
+    // Sync assignment selection with navigation state or reset
     useEffect(() => {
-        setSelectedAssignmentId(null);
-    }, [selectedMenteeId]);
+        const state = location.state as any;
+        if (state?.targetMenteeId === selectedMenteeId && state?.targetAssignmentId) {
+            setSelectedAssignmentId(state.targetAssignmentId);
+        } else {
+            setSelectedAssignmentId(null);
+        }
+    }, [selectedMenteeId, location.state]);
 
     const handleDeleteAssignment = async () => {
         if (!selectedAssignmentId) return;
