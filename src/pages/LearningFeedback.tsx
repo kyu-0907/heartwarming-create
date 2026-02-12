@@ -291,6 +291,21 @@ const LearningFeedback = () => {
 
             toast.success('피드백이 저장되었습니다.');
 
+            // Send Notification
+            if (selectedMenteeId) {
+                const currentAssignment = assignments.find(a => a.id === selectedAssignmentId);
+                const notifContent = currentAssignment
+                    ? `[피드백] '${currentAssignment.title}' 과제에 대한 멘토의 피드백이 도착했습니다.`
+                    : `[피드백] ${format(date, 'M월 d일')} 학습에 대한 멘토의 피드백이 도착했습니다.`;
+
+                await supabase.from('notifications').insert({
+                    user_id: selectedMenteeId,
+                    type: 'feedback',
+                    content: notifContent,
+                    is_read: false
+                });
+            }
+
         } catch (error) {
             console.error('Error saving feedback:', error);
             toast.error('피드백 저장 중 오류가 발생했습니다.');

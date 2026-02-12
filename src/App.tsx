@@ -10,6 +10,9 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import DevelopmentInProgress from "./pages/DevelopmentInProgress";
 import LearningFeedback from "./pages/LearningFeedback";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const queryClient = new QueryClient();
 
@@ -21,57 +24,95 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentee/:id"
-            element={
-              <ProtectedRoute>
-                <MenteeDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentee/:id/report"
-            element={
-              <ProtectedRoute>
-                <WeeklyReportDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentee/:id/report/:reportId"
-            element={
-              <ProtectedRoute>
-                <WeeklyReportDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/learning" element={<ProtectedRoute><LearningFeedback /></ProtectedRoute>} />
-          <Route path="/schedule" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
-          <Route path="/messages" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
-          <Route path="/stats" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  useEffect(() => {
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const channel = supabase
+        .channel('notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            const newNotif = payload.new as any;
+            toast.info(newNotif.content, {
+              duration: 5000,
+              action: {
+                label: '확인',
+                onClick: () => { }
+              }
+            });
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
+    setupRealtime();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentee/:id"
+              element={
+                <ProtectedRoute>
+                  <MenteeDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentee/:id/report"
+              element={
+                <ProtectedRoute>
+                  <WeeklyReportDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentee/:id/report/:reportId"
+              element={
+                <ProtectedRoute>
+                  <WeeklyReportDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/learning" element={<ProtectedRoute><LearningFeedback /></ProtectedRoute>} />
+            <Route path="/schedule" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
+            <Route path="/stats" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><DevelopmentInProgress /></ProtectedRoute>} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
