@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import ProfileHeader from '@/components/dashboard/ProfileHeader';
@@ -15,6 +15,7 @@ import { ArrowLeft, Menu } from 'lucide-react';
 const MenteeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMyWorkspaceOpen, setIsMyWorkspaceOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -71,7 +72,7 @@ const MenteeDetail = () => {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                <AssignmentCard menteeId={id} />
+                <AssignmentCard menteeId={id} highlightId={location.state?.targetAssignmentId} />
               </div>
             </div>
           </div>

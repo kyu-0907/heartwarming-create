@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isWithinInterval } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import {
     Select,
@@ -19,6 +19,17 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Mentee {
     id: string;
@@ -44,6 +55,7 @@ interface TodoItem {
 
 const LearningFeedback = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [date, setDate] = useState<Date>(new Date()); // Selected Date for Feedback
     const [calendarDate, setCalendarDate] = useState<Date>(new Date()); // Viewing Month
 
@@ -63,6 +75,19 @@ const LearningFeedback = () => {
     ]);
 
     const [selectedSubject, setSelectedSubject] = useState<typeof subjects[0] | null>(null);
+
+    // Initial load from navigation state
+    useEffect(() => {
+        if (location.state) {
+            const { targetMenteeId, targetDate } = location.state;
+            if (targetMenteeId) setSelectedMenteeId(targetMenteeId);
+            if (targetDate) {
+                const dateObj = new Date(targetDate);
+                setDate(dateObj);
+                setCalendarDate(dateObj);
+            }
+        }
+    }, [location.state]);
 
     // Fetch Mentees
     useEffect(() => {
@@ -164,6 +189,24 @@ const LearningFeedback = () => {
     useEffect(() => {
         setSelectedAssignmentId(null);
     }, [selectedMenteeId]);
+
+    const handleDeleteAssignment = async () => {
+        if (!selectedAssignmentId) return;
+
+        const assignmentToDelete = assignments.find(a => a.id === selectedAssignmentId);
+
+        try {
+            const { error } = await supabase.from('assignments').delete().eq('id', selectedAssignmentId);
+            if (error) throw error;
+
+            toast.success(`'${assignmentToDelete?.title}' 과제가 삭제되었습니다.`);
+            setAssignments(prev => prev.filter(a => a.id !== selectedAssignmentId));
+            setSelectedAssignmentId(null);
+        } catch (error) {
+            console.error('Error deleting assignment:', error);
+            toast.error('과제 삭제 중 오류가 발생했습니다.');
+        }
+    };
 
 
     const handleSave = async () => {
@@ -415,11 +458,11 @@ const LearningFeedback = () => {
 
                                                     let colorClass = '';
                                                     switch (assignment.subject) {
-                                                        case '국어': colorClass = 'bg-rose-100 text-rose-600 border-rose-200'; break;
-                                                        case '영어': colorClass = 'bg-blue-100 text-blue-600 border-blue-200'; break;
-                                                        case '수학': colorClass = 'bg-amber-100 text-amber-600 border-amber-200'; break;
-                                                        case '탐구': colorClass = 'bg-green-100 text-green-600 border-green-200'; break;
-                                                        default: colorClass = 'bg-gray-100 text-gray-600 border-gray-200';
+                                                        case '국어': colorClass = 'bg-rose-300 text-rose-900 border-rose-400 hover:bg-rose-400'; break;
+                                                        case '영어': colorClass = 'bg-blue-300 text-blue-900 border-blue-400 hover:bg-blue-400'; break;
+                                                        case '수학': colorClass = 'bg-amber-300 text-amber-900 border-amber-400 hover:bg-amber-400'; break;
+                                                        case '탐구': colorClass = 'bg-emerald-300 text-emerald-900 border-emerald-400 hover:bg-emerald-400'; break;
+                                                        default: colorClass = 'bg-slate-300 text-slate-900 border-slate-400 hover:bg-slate-400';
                                                     }
 
                                                     const isVerified = isAssignmentVerified(assignment.id);
@@ -503,10 +546,36 @@ const LearningFeedback = () => {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setSelectedAssignmentId(null)}
-                                    className="text-gray-400 hover:text-red-500 font-bold text-xs"
+                                    className="text-gray-400 hover:text-gray-600 font-bold text-xs"
                                 >
                                     해제
                                 </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-400 hover:text-red-600 hover:bg-red-50 font-bold text-xs"
+                                        >
+                                            삭제
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>과제 삭제</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                정말 '{selectedAssignment.title}' 과제를 삭제하시겠습니까?<br />
+                                                삭제된 과제는 복구할 수 없습니다.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>취소</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDeleteAssignment} className="bg-red-500 hover:bg-red-600 text-white">
+                                                삭제
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
                         )}
 

@@ -11,6 +11,7 @@ import {
     Search
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,6 +29,11 @@ const MenteeAssignmentMonitor = ({ menteeId, selectedDate }: MenteeAssignmentMon
 
     const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
+    const getMenteeImage = (nickname: string) => {
+        if (nickname === '멘티2') return '/images/avatar_female.png';
+        return '/images/avatar_male.png';
+    }
+
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
@@ -35,26 +41,61 @@ const MenteeAssignmentMonitor = ({ menteeId, selectedDate }: MenteeAssignmentMon
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
 
-                // 1. Fetch Assignments
-                let assignQuery = supabase.from('assignments').select('*');
-                if (menteeId) {
-                    assignQuery = assignQuery.eq('mentee_id', menteeId);
-                } else if (user.role === 'mentor') {
-                    assignQuery = assignQuery.eq('mentor_id', user.id);
-                }
-                const { data: assignData } = await assignQuery;
+                // 1. Check user role
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
 
-                // 2. Fetch Verifications
+                const isMentor = profile?.role === 'mentor';
+
+                // 2. Fetch Assignments
+                let assignQuery = supabase.from('assignments').select('*');
+
+                if (isMentor) {
+                    // If mentor, fetch assignments created by me (assuming mentor_id is user.id)
+                    // OR fetch all assignments for mentees I manage. 
+                    // Based on schema, assignments usually link to mentor_id.
+                    assignQuery = assignQuery.eq('mentor_id', user.id);
+                } else {
+                    // If mentee, fetch my assignments
+                    assignQuery = assignQuery.eq('mentee_id', user.id);
+                }
+
+                const { data: assignData, error: assignError } = await assignQuery;
+                if (assignError) throw assignError;
+
+                let assignmentsWithProfiles = assignData || [];
+
+                // 3. Manually fetch and map profiles to get mentee nicknames
+                if (assignmentsWithProfiles.length > 0) {
+                    const menteeIds = Array.from(new Set(assignmentsWithProfiles.map((a: any) => a.mentee_id)));
+                    const { data: profiles } = await supabase
+                        .from('profiles')
+                        .select('id, nickname')
+                        .in('id', menteeIds);
+
+                    if (profiles) {
+                        const profileMap = new Map(profiles.map((p: any) => [p.id, p]));
+                        assignmentsWithProfiles = assignmentsWithProfiles.map((a: any) => ({
+                            ...a,
+                            profiles: profileMap.get(a.mentee_id) || { nickname: '알 수 없음' }
+                        }));
+                    }
+                }
+
+                // 4. Fetch Verifications
                 const { data: verifData } = await supabase
                     .from('assignment_verifications')
                     .select('assignment_id, created_at');
 
-                // 3. Fetch Feedbacks (to see if feedback is already provided)
+                // 5. Fetch Feedbacks
                 const { data: feedbackData } = await supabase
                     .from('feedback')
                     .select('assignment_id, id');
 
-                setAssignments(assignData || []);
+                setAssignments(assignmentsWithProfiles);
                 setVerifications(verifData || []);
                 setFeedbacks(feedbackData || []);
 
@@ -115,21 +156,35 @@ const MenteeAssignmentMonitor = ({ menteeId, selectedDate }: MenteeAssignmentMon
                             <div
                                 key={assignment.id}
                                 className="group bg-white rounded-2xl p-4 border border-border shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer"
-                                onClick={() => navigate('/learning')}
+                                onClick={() => navigate('/learning', {
+                                    state: {
+                                        targetMenteeId: assignment.mentee_id,
+                                        targetAssignmentId: assignment.id,
+                                        targetDate: assignment.end_date
+                                    }
+                                })}
                             >
                                 <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${assignment.subject === '국어' ? 'bg-rose-50' : assignment.subject === '영어' ? 'bg-blue-50' : 'bg-amber-50'}`}>
-                                            <span className={`text-[10px] font-bold ${assignment.subject === '국어' ? 'text-rose-500' : assignment.subject === '영어' ? 'text-blue-500' : 'text-amber-500'}`}>
-                                                {assignment.subject[0]}
-                                            </span>
-                                        </div>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="w-8 h-8 border border-border shadow-sm">
+                                            <AvatarImage src={getMenteeImage(assignment.profiles?.nickname)} />
+                                            <AvatarFallback className="bg-slate-100 text-slate-600 font-bold">
+                                                {assignment.profiles?.nickname ? assignment.profiles.nickname[0] : '?'}
+                                            </AvatarFallback>
+                                        </Avatar>
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">{assignment.subject}</span>
-                                            <h4 className="text-sm font-bold text-foreground truncate max-w-[120px]">{assignment.title}</h4>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-base font-extrabold text-foreground tracking-tight">
+                                                    {assignment.profiles?.nickname || '알 수 없음'}
+                                                </span>
+                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${assignment.subject === '국어' ? 'bg-rose-100 text-rose-600' : assignment.subject === '영어' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                    {assignment.subject}
+                                                </span>
+                                            </div>
+                                            <h4 className="text-sm font-medium text-muted-foreground truncate max-w-[140px]">{assignment.title}</h4>
                                         </div>
                                     </div>
-                                    <Badge className={`${status.color} border-none shadow-none text-[10px] px-2 py-0.5 font-bold`}>
+                                    <Badge className={`${status.color} border-none shadow-none text-[10px] px-2 py-0.5 font-bold shrink-0`}>
                                         {status.label}
                                     </Badge>
                                 </div>
